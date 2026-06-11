@@ -2300,9 +2300,9 @@ function settleBillAndFreeTable(){
 // Timer for new orders
 let lksSeconds=2;
 setInterval(()=>{
+  if(document.hidden) return; // background mein to skip (phone fix)
   lksSeconds++;
   const el=document.getElementById('lksTimer1');
-  // Only update if element is visible (phone performance fix)
   if(el && el.offsetParent !== null){const m=String(Math.floor(lksSeconds/60)).padStart(2,'0'),s=String(lksSeconds%60).padStart(2,'0');el.textContent=m+':'+s;}
 },1000);
 
@@ -4581,8 +4581,8 @@ const ARIA_VOICE = {
 
   // ── ElevenLabs TTS — multilingual cute girl voice ──
   async elSpeak(txt, done) {
-    // Phone performance fix: skip ElevenLabs if no key set
-    if (!this.key || this.key.trim() === '') {
+    // Key nahi hai to seedha browser voice use karo — 404 errors band (phone fix)
+    if (!this.key || !this.key.trim() || !this.vid || !this.vid.trim()) {
       this.hindiBrowserSpeak(txt, done);
       return;
     }
@@ -6572,7 +6572,7 @@ function toggleAriaPanel() {
     }
     ariaUpdateMonitor();
     ariaUpdateLangBar();
-    ariaMonitorInterval = setInterval(ariaUpdateMonitor, 8000); // phone performance fix
+    ariaMonitorInterval = setInterval(ariaUpdateMonitor, 10000); // phone fix
   } else {
     panel.classList.remove('open');
     fab.classList.remove('panel-open');
@@ -7581,11 +7581,23 @@ function startCaptainOrderListener() {
     }); // end docChanges forEach
     } // end if(!isFirstLoad)
 
-    // Render updates
-    renderCaptainLiveOrders();
-    renderCaptainKitchenOrders();
-    updateCaptainDashboardCounts();
-    updateDashboardFromFirebase();  // ← Firebase real data se dashboard KPI update
+    // Render updates — requestAnimationFrame se wrap kiya (phone freeze fix)
+    // Main thread ko breathe karne deta hai — touch events block nahi hote
+    if (window._captainRenderPending) return;
+    window._captainRenderPending = true;
+    requestAnimationFrame(() => {
+      window._captainRenderPending = false;
+      const liveEl = document.getElementById('liveOrdersTbody');
+      const kitEl  = document.getElementById('captainKitchenCards');
+      // Sirf visible page render karo — dono ek saath mat karo
+      if (liveEl) renderCaptainLiveOrders();
+      // Kitchen thodi der baad — main thread free rakho
+      setTimeout(() => {
+        if (kitEl) renderCaptainKitchenOrders();
+        updateCaptainDashboardCounts();
+        updateDashboardFromFirebase();
+      }, 50);
+    });
   });
 }
 
@@ -8293,15 +8305,16 @@ function renderCaptainOrderHistory() {
   }, 1000);
 })();
 
-// Kitchen cards auto-refresh — every 15 seconds (phone performance fix)
+// Kitchen cards auto-refresh — every 20 seconds, only visible page (phone fix)
 setInterval(() => {
+  if (document.hidden) return; // Tab background mein hai to skip
   if (_captainFirebaseOrders.some(o => o.estimatedMinutes || o.captainTimer)) {
     const container = document.getElementById('captainKitchenCards');
-    if (container && container.children.length > 0) {
-      renderCaptainKitchenOrders();
+    if (container && container.children.length > 0 && container.offsetParent !== null) {
+      requestAnimationFrame(() => renderCaptainKitchenOrders());
     }
   }
-}, 15000);
+}, 20000);
 
 // ── HOOK showPage to refresh Firebase data ──
 const _origCaptainShowPage = window.showPage;
@@ -8336,21 +8349,26 @@ window.renderCaptainOrderHistory = renderCaptainOrderHistory;
 
 // ─────────────────────────────────
 
-// ── 1. REAL-TIME TIMER REFRESH — every 3 seconds (phone performance fix) ──
+// ── 1. REAL-TIME TIMER REFRESH — every 5 seconds (phone performance fix) ──
+let _timerRefreshTick = 0;
 setInterval(() => {
+  if (document.hidden) return; // Background mein to skip
+  _timerRefreshTick++;
   const hasTimers = _captainFirebaseOrders.some(o =>
     (o.estimatedMinutes || o.captainTimer) && o.acceptedAt
   );
   if (!hasTimers) return;
   const kitchenPage = document.getElementById('page-kitchen');
   const liveOrdersPage = document.getElementById('page-liveorders');
-  if (kitchenPage && kitchenPage.classList.contains('active')) {
-    renderCaptainKitchenOrders();
-  }
-  if (liveOrdersPage && liveOrdersPage.classList.contains('active')) {
-    renderCaptainLiveOrders();
-  }
-}, 3000);
+  // Sirf ek page render karo ek time pe — dono nahi
+  requestAnimationFrame(() => {
+    if (kitchenPage && kitchenPage.classList.contains('active')) {
+      renderCaptainKitchenOrders();
+    } else if (liveOrdersPage && liveOrdersPage.classList.contains('active')) {
+      renderCaptainLiveOrders();
+    }
+  });
+}, 5000);
 
 // ── 2. AI LATE ALERT SYSTEM ──
 // Jab chef ne jo time diya tha us se 10 min zyada ho jaye → dono ko AI alert (voice + visual)
@@ -11309,18 +11327,31 @@ window.addEventListener('load',function(){
 });
 console.log('🔔 CaptainDash Rich Pop Notifications v2.0 loaded!');
 
-// ═══════════════════════════════════════════════
-// PHONE PERFORMANCE FIX — Pause heavy work when app is hidden
-// ═══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// PHONE PERFORMANCE FIXES
+// ══════════════════════════════════════════════
+
+// Touch events passive — scroll aur touch jank band karo
+document.addEventListener('touchstart', function(){}, {passive: true});
+document.addEventListener('touchmove',  function(){}, {passive: true});
+document.addEventListener('touchend',   function(){}, {passive: true});
+
+// Background mein jaane pe speech cancel karo
 document.addEventListener('visibilitychange', function() {
   if (document.hidden) {
-    // App background mein gaya — speech cancel karo
-    if (window.speechSynthesis && window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
+    try {
+      if (window.speechSynthesis && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+    } catch(e) {}
   }
 });
 
-// Prevent scroll jank on mobile
-document.addEventListener('touchstart', function() {}, { passive: true });
-document.addEventListener('touchmove', function() {}, { passive: true });
+// Memory leak prevent karo — speech synthesis queue clear karo
+setInterval(function() {
+  try {
+    if (window.speechSynthesis && !window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel(); // queue flush
+    }
+  } catch(e) {}
+}, 30000);
