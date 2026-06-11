@@ -2302,7 +2302,8 @@ let lksSeconds=2;
 setInterval(()=>{
   lksSeconds++;
   const el=document.getElementById('lksTimer1');
-  if(el){const m=String(Math.floor(lksSeconds/60)).padStart(2,'0'),s=String(lksSeconds%60).padStart(2,'0');el.textContent=m+':'+s;}
+  // Only update if element is visible (phone performance fix)
+  if(el && el.offsetParent !== null){const m=String(Math.floor(lksSeconds/60)).padStart(2,'0'),s=String(lksSeconds%60).padStart(2,'0');el.textContent=m+':'+s;}
 },1000);
 
 function lksMoveOrder(btn, toStatus){
@@ -4580,6 +4581,11 @@ const ARIA_VOICE = {
 
   // ── ElevenLabs TTS — multilingual cute girl voice ──
   async elSpeak(txt, done) {
+    // Phone performance fix: skip ElevenLabs if no key set
+    if (!this.key || this.key.trim() === '') {
+      this.hindiBrowserSpeak(txt, done);
+      return;
+    }
     try {
       // eleven_turbo_v2_5 = best for Hindi/Marathi/English multilingual
       const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${this.vid}`,{
@@ -6566,7 +6572,7 @@ function toggleAriaPanel() {
     }
     ariaUpdateMonitor();
     ariaUpdateLangBar();
-    ariaMonitorInterval = setInterval(ariaUpdateMonitor, 3000);
+    ariaMonitorInterval = setInterval(ariaUpdateMonitor, 8000); // phone performance fix
   } else {
     panel.classList.remove('open');
     fab.classList.remove('panel-open');
@@ -8287,7 +8293,7 @@ function renderCaptainOrderHistory() {
   }, 1000);
 })();
 
-// Kitchen cards auto-refresh — every 5 seconds
+// Kitchen cards auto-refresh — every 15 seconds (phone performance fix)
 setInterval(() => {
   if (_captainFirebaseOrders.some(o => o.estimatedMinutes || o.captainTimer)) {
     const container = document.getElementById('captainKitchenCards');
@@ -8295,7 +8301,7 @@ setInterval(() => {
       renderCaptainKitchenOrders();
     }
   }
-}, 5000);
+}, 15000);
 
 // ── HOOK showPage to refresh Firebase data ──
 const _origCaptainShowPage = window.showPage;
@@ -8330,7 +8336,7 @@ window.renderCaptainOrderHistory = renderCaptainOrderHistory;
 
 // ─────────────────────────────────
 
-// ── 1. REAL-TIME TIMER REFRESH — per second update ──
+// ── 1. REAL-TIME TIMER REFRESH — every 3 seconds (phone performance fix) ──
 setInterval(() => {
   const hasTimers = _captainFirebaseOrders.some(o =>
     (o.estimatedMinutes || o.captainTimer) && o.acceptedAt
@@ -8344,7 +8350,7 @@ setInterval(() => {
   if (liveOrdersPage && liveOrdersPage.classList.contains('active')) {
     renderCaptainLiveOrders();
   }
-}, 1000);
+}, 3000);
 
 // ── 2. AI LATE ALERT SYSTEM ──
 // Jab chef ne jo time diya tha us se 10 min zyada ho jaye → dono ko AI alert (voice + visual)
@@ -11302,3 +11308,19 @@ window.addEventListener('load',function(){
   }
 });
 console.log('🔔 CaptainDash Rich Pop Notifications v2.0 loaded!');
+
+// ═══════════════════════════════════════════════
+// PHONE PERFORMANCE FIX — Pause heavy work when app is hidden
+// ═══════════════════════════════════════════════
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) {
+    // App background mein gaya — speech cancel karo
+    if (window.speechSynthesis && window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+    }
+  }
+});
+
+// Prevent scroll jank on mobile
+document.addEventListener('touchstart', function() {}, { passive: true });
+document.addEventListener('touchmove', function() {}, { passive: true });
