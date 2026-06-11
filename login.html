@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>jijau Restro Login</title>
+
+  <style>
+    * {margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif;}
+
+    body {
+      height:100vh;
+      overflow:hidden;
+      background: linear-gradient(270deg,#001a00,#003300,#001a00);
+      background-size:600% 600%;
+      animation:bgMove 10s infinite;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+    }
+
+    @keyframes bgMove {
+      0%{background-position:0% 50%;}
+      50%{background-position:100% 50%;}
+      100%{background-position:0% 50%;}
+    }
+
+    .food {
+      position:absolute;
+      width:120px;
+      border-radius:20px;
+      animation: float 6s infinite ease-in-out, rotate 20s linear infinite;
+    }
+
+    .f1 {top:10%;left:10%;}
+    .f2 {top:70%;left:15%;}
+    .f3 {top:20%;right:10%;}
+    .f4 {bottom:10%;right:20%;}
+
+    @keyframes float {
+      0%,100%{transform:translateY(0);}
+      50%{transform:translateY(-40px);}
+    }
+
+    @keyframes rotate {
+      from{transform:rotate(0deg);}
+      to{transform:rotate(360deg);}
+    }
+
+    .login-box {
+      z-index:2;
+      width:360px;
+      padding:40px;
+      border-radius:20px;
+      background:rgba(255,255,255,0.08);
+      backdrop-filter:blur(20px);
+      box-shadow:0 0 40px rgba(0,255,100,0.4);
+      text-align:center;
+      color:white;
+    }
+
+    .logo {font-size:30px;margin-bottom:10px;color:#00e676;}
+
+    input {
+      width:100%;
+      padding:12px;
+      margin:10px 0;
+      border:none;
+      border-radius:10px;
+      background:rgba(255,255,255,0.15);
+      color:white;
+    }
+
+    button {
+      width:100%;
+      padding:12px;
+      border:none;
+      border-radius:10px;
+      background:linear-gradient(45deg,#00c853,#69f0ae);
+      cursor:pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+<img class="food f1" src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd">
+<img class="food f2" src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c">
+<img class="food f3" src="https://images.unsplash.com/photo-1504674900247-0877df9cc836">
+<img class="food f4" src="https://images.unsplash.com/photo-1543353071-087092ec393a">
+
+<div class="login-box">
+  <div class="logo">🌿 jijau Restro (pure veg)</div>
+  <h2>Welcome Back</h2>
+
+  <!-- 🔥 IMPORTANT ID SAME -->
+  <form id="loginForm">
+    <input id="email" type="email" placeholder="Email" required>
+    <input id="password" type="password" placeholder="Password" required>
+    <button type="submit">Login</button>
+  </form>
+</div>
+
+<!-- Firebase CDN -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyBsRxWD2R1GkSEM-duLwQe3jAi7yw5vvvM",
+    authDomain: "restaurant-system-beec1.firebaseapp.com",
+    projectId: "restaurant-system-beec1",
+    storageBucket: "restaurant-system-beec1.firebasestorage.app",
+    messagingSenderId: "106757122327",
+    appId: "1:106757122327:web:723d8dacbba3087b686f52",
+    measurementId: "G-5MQHDVS4TN"
+  };
+
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+
+    const snapshot = await db.collection("users")
+      .where("email", "==", email)
+      .get();
+
+    let role = "";
+    snapshot.forEach(doc => role = doc.data().role);
+
+    if (role === "chef") location.href = "chef.html";
+    else if (role === "captain") location.href = "captain.html";
+    else if (role === "billing") location.href = "billing.html";
+    else if (role === "ads") location.href = "ads.html";
+
+  } catch (err) {
+    alert(err.message);
+  }
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Veg POS Login</title>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    body {
+      height: 100vh;
+      overflow: hidden;
+      background: linear-gradient(270deg, #001a00, #003300, #001a00);
+      background-size: 600% 600%;
+      animation: bgMove 10s infinite;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    @keyframes bgMove {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
+    }
+
+    .food {
+      position: absolute;
+      width: 120px;
+      border-radius: 20px;
+      animation: float 6s infinite ease-in-out, rotate 20s linear infinite;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .f1 { top: 10%; left: 10%; }
+    .f2 { top: 70%; left: 15%; }
+    .f3 { top: 20%; right: 10%; }
+    .f4 { bottom: 10%; right: 20%; }
+
+    @keyframes float {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-40px); }
+    }
+
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .login-box {
+      position: relative;
+      z-index: 2;
+      width: 360px;
+      padding: 40px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.2);
+      box-shadow: 0 0 40px rgba(0, 255, 100, 0.4);
+      text-align: center;
+      color: white;
+      animation: fadeIn 1.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from {opacity: 0; transform: translateY(50px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
+
+    .logo {
+      font-size: 30px;
+      margin-bottom: 10px;
+      color: #00e676;
+      text-shadow: 0 0 10px #00e676;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.15);
+      color: white;
+      outline: none;
+      transition: 0.3s;
+    }
+
+    input:focus {
+      background: rgba(255,255,255,0.25);
+      box-shadow: 0 0 10px #00e676;
+    }
+
+    input::placeholder {
+      color: #ccc;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(45deg, #00c853, #69f0ae);
+      color: black;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px #69f0ae;
+    }
+
+    #error-msg {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #ff5252;
+      min-height: 20px;
+    }
+
+    #loading-msg {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #69f0ae;
+      min-height: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- VEG FOOD IMAGES -->
+<img class="food f1" src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd">
+<img class="food f2" src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c">
+<img class="food f3" src="https://images.unsplash.com/photo-1504674900247-0877df9cc836">
+<img class="food f4" src="https://images.unsplash.com/photo-1543353071-087092ec393a">
+
+<!-- LOGIN -->
+<div class="login-box">
+  <div class="logo">🌿 Veg POS</div>
+  <h2>Welcome Back</h2>
+
+  <input id="email" type="email" placeholder="Email (User ID)">
+  <input id="password" type="password" placeholder="Password">
+
+  <button onclick="login()">Login</button>
+
+  <p id="loading-msg"></p>
+  <p id="error-msg"></p>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBsRxWD2R1GkSEM-duLwQe3jAi7yw5vvvM",
+    authDomain: "restaurant-system-beec1.firebaseapp.com",
+    projectId: "restaurant-system-beec1",
+    storageBucket: "restaurant-system-beec1.firebasestorage.app",
+    messagingSenderId: "106757122327",
+    appId: "1:106757122327:web:723d8dacbba3087b686f52",
+    measurementId: "G-5MQHDVS4TN"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  // Agar user pehle se logged in hai toh seedha panel pe bhejo
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      window.location.href = "client/index.html";
+    }
+  });
+
+  window.login = function () {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const errorMsg = document.getElementById("error-msg");
+    const loadingMsg = document.getElementById("loading-msg");
+
+    errorMsg.innerText = "";
+    loadingMsg.innerText = "Logging in... ⏳";
+
+    if (!email || !password) {
+      loadingMsg.innerText = "";
+      errorMsg.innerText = "❌ Email aur Password dono bharo!";
+      return;
+    }
+
+    signInWithEmailAndPassword(auth, email, password)
+      .then(() => {
+        loadingMsg.innerText = "✅ Login ho raha hai...";
+        // onAuthStateChanged redirect karega
+      })
+      .catch((error) => {
+        loadingMsg.innerText = "";
+        if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+          errorMsg.innerText = "❌ Wrong Email ya Password!";
+        } else if (error.code === "auth/invalid-email") {
+          errorMsg.innerText = "❌ Email format sahi nahi hai!";
+        } else {
+          errorMsg.innerText = "❌ Error: " + error.message;
+        }
+      });
+  }
+
+</script>
+
+</body>
+</html>
