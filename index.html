@@ -177,10 +177,10 @@
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
 
-  // Agar user pehle se logged in hai toh seedha panel pe bhejo
+  // ✅ FIX: client/index.html ki jagah login.html pe redirect
   onAuthStateChanged(auth, (user) => {
     if (user) {
-      window.location.href = "client/index.html";
+      window.location.href = "login.html";
     }
   });
 
@@ -202,7 +202,7 @@
     signInWithEmailAndPassword(auth, email, password)
       .then(() => {
         loadingMsg.innerText = "✅ Login ho raha hai...";
-        // onAuthStateChanged redirect karega
+        // onAuthStateChanged redirect karega login.html pe
       })
       .catch((error) => {
         loadingMsg.innerText = "";
