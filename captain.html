@@ -3243,7 +3243,15 @@ tbody td { color: var(--ink2) !important; }
     position: relative !important;
     padding-bottom: 80px !important;
     -webkit-overflow-scrolling: touch !important;
+    display: none !important;
+    flex-direction: column !important;
+  }
+  #orderCartPanel.mob-visible {
     display: flex !important;
+  }
+  #page-orderplace > div > div:first-child {
+    display: flex !important;
+    width: 100% !important;
     flex-direction: column !important;
   }
   #orderMenuPanel {
@@ -3748,10 +3756,10 @@ tbody td { color: var(--ink2) !important; }
 <div id="orderFloatToggle" style="
   display:none;
   position:fixed;
-  bottom:20px;
+  top:60px;
   right:16px;
   z-index:9999;
-  flex-direction:column;
+  flex-direction:row;
   gap:8px;
   align-items:center;
 ">
@@ -5084,6 +5092,7 @@ tbody td { color: var(--ink2) !important; }
 
         <!-- ══ RIGHT: CART + ORDER PANEL (scrolls independently) ══ -->
         <div id="orderCartPanel" style="width:330px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;height:calc(100vh - 150px);max-height:calc(100vh - 150px);background:var(--white);border-radius:var(--r16);border:1px solid var(--line);padding:14px 14px 0;box-shadow:var(--sh-md);position:sticky;top:10px">
+          <button onclick="mobShowPanel('menu')" class="btn btn-outline" style="display:none;margin-bottom:10px" id="cartBackToMenuBtn">⬅ Back to Menu</button>
           <!-- Cart header — fixed, does not scroll -->
           <div style="flex-shrink:0;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:1px solid var(--line)">
             <div style="font-size:15px;font-weight:900;color:var(--ink);letter-spacing:-.3px">🛒 Order Summary</div>
@@ -17421,7 +17430,7 @@ function mobShowPanel(panel) {
 
   if (panel === 'menu') {
     if (menuPanel) { menuPanel.style.display = 'flex'; menuPanel.style.width = '100%'; menuPanel.style.flexDirection = 'column'; }
-    if (cartPanel) { cartPanel.style.display = 'none'; }
+    if (cartPanel) { cartPanel.classList.remove('mob-visible'); cartPanel.style.display = 'none'; }
     if (actionBtns) { actionBtns.style.display = 'none'; }
     if (menuTab) menuTab.classList.add('active');
     if (cartTab) cartTab.classList.remove('active');
@@ -17430,7 +17439,10 @@ function mobShowPanel(panel) {
     if (floatCartBtn) { floatCartBtn.style.boxShadow = '0 6px 20px rgba(29,78,216,.45)'; }
   } else {
     if (menuPanel) { menuPanel.style.display = 'none'; }
+    const backBtn = document.getElementById('cartBackToMenuBtn');
+    if (backBtn) backBtn.style.display = 'block';
     if (cartPanel) { 
+      cartPanel.classList.add('mob-visible');
       cartPanel.style.display = 'flex'; 
       cartPanel.style.width = '100%';
       cartPanel.style.flexDirection = 'column';
