@@ -554,6 +554,37 @@ body {
   flex-direction: column;
 }
 
+/* ── FULL SCREEN MODE (jab sidebar hide ho) ── */
+body.orderplace-fullscreen #page-orderplace {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  z-index: 500 !important;
+  background: var(--bg) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+body.orderplace-fullscreen #page-orderplace > div:not(.mob-order-tabs) {
+  flex: 1 !important;
+  min-height: 0 !important;
+  height: 0 !important;
+}
+body.orderplace-fullscreen .sidebar,
+body.orderplace-fullscreen .topbar,
+body.orderplace-fullscreen #mobBottomNav,
+body.orderplace-fullscreen #mobMenuBtn {
+  display: none !important;
+}
+body.orderplace-fullscreen .content {
+  margin-left: 0 !important;
+  padding-top: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+
 /* ── SPLIT VIEW INDEPENDENT SCROLL FIX ── */
 /* Menu panel aur Order panel dono independently scroll karenge */
 #page-orderplace > div {
@@ -1014,7 +1045,7 @@ tbody td { padding: 12px 20px; color: var(--ink2); font-weight: 600; }
    ORDER PLACEMENT
 ================================================================ */
 .order-grid { display:grid; grid-template-columns:1fr 355px; gap:16px; }
-.order-menu { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.order-menu { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
 
 /* ── SLIDE PANELS for Menu ↔ Cart toggle ── */
 #orderMenuPanel, #orderCartPanel {
@@ -3181,19 +3212,27 @@ tbody td { color: var(--ink2) !important; }
 
   /* Place Order page — stack on mobile */
   #page-orderplace {
-    height: auto !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
+    height: 100% !important;
+    overflow: hidden !important;
     -webkit-overflow-scrolling: touch !important;
-    margin: -16px -14px 0 !important;
+    margin: 0 !important;
     padding: 0 !important;
+    position: relative !important;
+  }
+  body.orderplace-fullscreen #page-orderplace {
+    position: fixed !important;
+    top: 0 !important; left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    z-index: 500 !important;
   }
   #page-orderplace > div {
     flex-direction: column !important;
-    height: auto !important;
-    padding: 12px 12px 180px !important;
-    gap: 12px !important;
-    overflow: visible !important;
+    height: calc(100vh - 60px) !important;
+    padding: 0 !important;
+    gap: 0 !important;
+    overflow: hidden !important;
   }
   #orderCartPanel {
     width: 100% !important;
@@ -3683,6 +3722,79 @@ tbody td { color: var(--ink2) !important; }
 
 <!-- SIDEBAR OVERLAY -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
+
+<!-- PLACE ORDER BACK BUTTON — sirf orderplace page pe dikhega -->
+<button id="orderplaceBackBtn" onclick="goBackFromOrderPlace()" style="
+  display:none;
+  position:fixed;
+  top:14px;
+  left:14px;
+  z-index:9999;
+  width:42px;height:42px;
+  border-radius:50%;
+  background:#fff;
+  border:2px solid #e5e7eb;
+  box-shadow:0 4px 16px rgba(0,0,0,.18);
+  cursor:pointer;
+  align-items:center;justify-content:center;
+  transition:all .2s ease;
+" onmouseenter="this.style.background='#ecfdf5';this.style.borderColor='#059669'" onmouseleave="this.style.background='#fff';this.style.borderColor='#e5e7eb'">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>
+  </svg>
+</button>
+
+<!-- FLOATING MENU / CART TOGGLE — bottom right corner -->
+<div id="orderFloatToggle" style="
+  display:none;
+  position:fixed;
+  bottom:20px;
+  right:16px;
+  z-index:9999;
+  flex-direction:column;
+  gap:8px;
+  align-items:center;
+">
+  <!-- Menu Button -->
+  <button onclick="mobShowPanel('menu')" id="floatMenuBtn" title="Menu" style="
+    width:54px;height:54px;border-radius:50%;
+    background:linear-gradient(135deg,#059669,#047857);
+    border:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 4px 18px rgba(5,150,105,.5);
+    flex-direction:column;gap:2px;
+    transition:transform .15s ease;
+  " onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/>
+    </svg>
+    <span style="font-size:8px;color:#fff;font-weight:800;font-family:'Outfit',sans-serif">MENU</span>
+  </button>
+  <!-- Cart Button -->
+  <button onclick="mobShowPanel('cart')" id="floatCartBtn" title="Cart" style="
+    width:54px;height:54px;border-radius:50%;
+    background:linear-gradient(135deg,#1d4ed8,#1e40af);
+    border:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 4px 18px rgba(29,78,216,.5);
+    flex-direction:column;gap:2px;
+    position:relative;
+    transition:transform .15s ease;
+  " onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+    </svg>
+    <span style="font-size:8px;color:#fff;font-weight:800;font-family:'Outfit',sans-serif">CART</span>
+    <span id="floatCartBadge" style="
+      display:none;position:absolute;top:3px;right:3px;
+      background:#ef4444;color:#fff;font-size:9px;font-weight:800;
+      width:17px;height:17px;border-radius:50%;
+      align-items:center;justify-content:center;
+      font-family:'Outfit',sans-serif;
+      border:2px solid #fff;
+    "></span>
+  </button>
+</div>
 
 <!-- BOTTOM NAV (Mobile) -->
 <div class="mob-bottom-nav" id="mobBottomNav">
@@ -4917,12 +5029,13 @@ tbody td { color: var(--ink2) !important; }
 
     <!-- ===== PLACE ORDER (SPLIT VIEW) ===== -->
     <div class="page" id="page-orderplace" style="overflow-x:hidden;overflow-y:auto;height:calc(100vh - 108px);padding:0;-webkit-overflow-scrolling:touch">
+
       <div class="mob-order-tabs" id="mobOrderTabs" style="display:none">
   <div class="mob-order-tab active" id="mobTabMenu" onclick="mobShowPanel('menu')">🍽️ Menu</div>
   <div class="mob-order-tab" id="mobTabCart" onclick="mobShowPanel('cart')">🛒 Cart <span id="mobCartBadge"></span></div>
 </div>
 <!-- Split layout wrapper — fills full available height, no outer scroll -->
-      <div style="display:flex;gap:14px;height:100%;padding:14px 14px 16px;box-sizing:border-box;overflow-x:hidden;overflow-y:auto">
+      <div style="display:flex;gap:14px;height:100%;padding:14px 14px 16px;box-sizing:border-box;overflow:hidden;flex:1;min-height:0">
 
         <!-- ══ LEFT: MENU PANEL (scrolls independently) ══ -->
         <div style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:visible;background:var(--bg);border-radius:var(--r16);border:1px solid var(--line);padding:14px;box-shadow:var(--sh-sm)">
@@ -5018,13 +5131,31 @@ tbody td { color: var(--ink2) !important; }
             <!-- Chef Instructions -->
             <div style="margin-bottom:12px">
               <div style="font-size:10px;font-weight:700;color:var(--ink2);margin-bottom:4px">👨‍🍳 Chef Instructions</div>
-              <textarea style="width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:7px 11px;font-size:11px;color:var(--ink);font-family:'Outfit',sans-serif;outline:none;resize:none;height:52px" id="chefInstructions" placeholder="Extra cheese, No onions, Less spicy..."></textarea>
+              <select id="chefInstructions" style="width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:7px 11px;font-size:11px;color:var(--ink);font-family:'Outfit',sans-serif;outline:none;margin-bottom:5px">
+                <option value="">-- Select instruction --</option>
+                <option value="Extra cheese">🧀 Extra cheese</option>
+                <option value="No onions">🚫 No onions</option>
+                <option value="Less spicy">🌶️ Less spicy</option>
+                <option value="Extra spicy">🔥 Extra spicy</option>
+                <option value="No garlic">🚫 No garlic</option>
+                <option value="Jain (no onion no garlic)">🌱 Jain (no onion no garlic)</option>
+                <option value="Well done">✅ Well done</option>
+                <option value="Less oil">🫒 Less oil</option>
+                <option value="Extra sauce">🥣 Extra sauce</option>
+                <option value="No mayo">🚫 No mayo</option>
+                <option value="Gluten free">🌾 Gluten free</option>
+                <option value="Pack separately">📦 Pack separately</option>
+                <option value="Extra crispy">🍟 Extra crispy</option>
+                <option value="No ice">🧊 No ice</option>
+                <option value="Less sweet">🍬 Less sweet</option>
+              </select>
+              <input type="text" id="chefInstructionsCustom" placeholder="Ya custom likho..." style="width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:7px 11px;font-size:11px;color:var(--ink);font-family:'Outfit',sans-serif;outline:none;box-sizing:border-box">
             </div>
           </div>
           <!-- Bottom action buttons -->
           <div id="orderActionBtns" style="flex-shrink:0;padding:10px 0 14px;border-top:1px solid var(--line);display:flex;gap:7px;background:var(--white)">
             <button class="btn btn-outline" style="flex:1" onclick="openKOT()">🖨️ KOT</button>
-            <button class="btn btn-green" style="flex:2;padding:10px;font-size:13px;font-weight:800" onclick="placeOrder()">🚀 Place Order</button>
+            <button class="btn btn-green" style="flex:2;padding:10px;font-size:13px;font-weight:800" onclick="openOrderSummary()">🚀 Place Order</button>
           </div>
           
         </div>
@@ -6375,6 +6506,31 @@ function showPage(id, el){
   const contentEl = document.querySelector('.content');
   if(contentEl) contentEl.scrollTop = 0;
   if(window.innerWidth <= 768) closeMobileSidebar();
+
+  // ── PLACE ORDER — Full Screen Mode ──
+  const backBtn   = document.getElementById('orderplaceBackBtn');
+  const floatToggle = document.getElementById('orderFloatToggle');
+
+  if(id === 'orderplace'){
+    document.body.classList.add('orderplace-fullscreen');
+    if(backBtn)  { backBtn.style.display  = 'flex'; }
+    if(floatToggle) { floatToggle.style.display = 'flex'; }
+    // Mobile: Menu panel show by default
+    if(window.innerWidth <= 900) {
+      setTimeout(function(){ mobShowPanel('menu'); }, 50);
+    }
+  } else {
+    document.body.classList.remove('orderplace-fullscreen');
+    if(backBtn)  { backBtn.style.display  = 'none'; }
+    if(floatToggle) { floatToggle.style.display = 'none'; }
+  }
+}
+
+// ── Back button se dashboard pe jaao ──
+function goBackFromOrderPlace(){
+  const dashNav = document.querySelector('.nav-item[onclick*="dashboard"]');
+  showPage('dashboard', dashNav);
+  if(dashNav) dashNav.classList.add('active');
 }
 
 // ===== SETTINGS — AI VOICE LANGUAGE =====
@@ -6901,22 +7057,8 @@ function doMerge(){
 // ===========================
 // Standard spicy options — har dish ke liye
 var _defaultSpicy = ['Jain','Normal','Medium','Spicy','Extra Spicy'];
-const menuItems=[
-  {id:1,name:'Margherita Pizza',cat:'pizza',price:299,halfPrice:179,emoji:'🍕',offer:'🔥 Best Seller',discount:'',spicy:_defaultSpicy,desc:'Classic Italian pizza with mozzarella & basil'},
-  {id:2,name:'Pepperoni Pizza',cat:'pizza',price:349,halfPrice:209,emoji:'🍕',offer:'',discount:'10% OFF',spicy:_defaultSpicy,desc:'Loaded with pepperoni & cheese'},
-  {id:3,name:'Burger Deluxe',cat:'burger',price:250,halfPrice:150,emoji:'🍔',offer:'🍔 Popular',discount:'',spicy:_defaultSpicy,desc:'Juicy double patty with lettuce & sauce'},
-  {id:4,name:'Veg Burger',cat:'burger',price:180,halfPrice:109,emoji:'🍔',offer:'',discount:'15% OFF',spicy:_defaultSpicy,desc:'Garden patty with fresh veggies'},
-  {id:5,name:'Pasta Alfredo',cat:'pasta',price:300,halfPrice:180,emoji:'🍜',offer:'',discount:'',spicy:_defaultSpicy,desc:'Creamy white sauce pasta with parmesan'},
-  {id:6,name:'Penne Arrabbiata',cat:'pasta',price:280,halfPrice:169,emoji:'🍝',offer:'',discount:'',spicy:_defaultSpicy,desc:'Penne in spicy tomato sauce'},
-  {id:7,name:'Fresh Juice',cat:'drinks',price:100,halfPrice:60,emoji:'🥤',offer:'',discount:'',spicy:['Jain','Normal'],desc:'Fresh squeezed seasonal fruit juice'},
-  {id:8,name:'Cold Coffee',cat:'drinks',price:120,halfPrice:72,emoji:'☕',offer:'⚡ Quick',discount:'',spicy:['Jain','Normal'],desc:'Chilled coffee with cream'},
-  {id:9,name:'Combo Meal A',cat:'combos',price:450,halfPrice:270,emoji:'🎁',offer:'💰 Best Value',discount:'20% OFF',spicy:_defaultSpicy,desc:'Pizza + Burger + Drink — save ₹120'},
-  {id:10,name:'Combo Meal B',cat:'combos',price:380,halfPrice:228,emoji:'🎁',offer:'',discount:'15% OFF',spicy:_defaultSpicy,desc:'Pasta + Salad + Juice — save ₹90'},
-  {id:11,name:'Chicken Wrap',cat:'wraps',price:220,halfPrice:132,emoji:'🌯',offer:'',discount:'',spicy:_defaultSpicy,desc:'Grilled chicken with fresh veggies & sauce'},
-  {id:12,name:'Garden Salad',cat:'wraps',price:200,halfPrice:120,emoji:'🥗',offer:'',discount:'',spicy:['Jain','Normal'],desc:'Fresh greens with lemon dressing'},
-  {id:13,name:'Cheesecake',cat:'dessert',price:180,halfPrice:108,emoji:'🍰',offer:'',discount:'',spicy:['Jain','Normal'],desc:'New York style baked cheesecake'},
-  {id:14,name:'Ice Cream',cat:'dessert',price:120,halfPrice:72,emoji:'🍦',offer:'🍦 Cool',discount:'',spicy:['Jain','Normal'],desc:'3-scoop vanilla/chocolate/strawberry'},
-];
+// Menu items — Firebase 'captainMenu' collection se load hote hain (_loadMenuAndCatsFromFirebase)
+const menuItems=[];
 
 // Selected spicy levels per item
 const selectedSpicy={};
@@ -6941,7 +7083,9 @@ function renderOrderItem(item){
         <button id="portion-half-${item.id}" onclick="selectPortion(${item.id},'Half',${item.price},${item.halfPrice},this)" style="flex:1;padding:4px 6px;border-radius:8px;border:1.5px solid ${portion==='Half'?'var(--amber)':'var(--line2)'};background:${portion==='Half'?'var(--amber-bg)':'#fff'};color:${portion==='Half'?'var(--amber)':'var(--ink3)'};font-size:11px;font-weight:700;cursor:pointer;font-family:'Outfit',sans-serif;transition:.15s">🥣 Half<br><span style="font-size:10px;font-weight:600">₹${item.halfPrice}</span></button>
       </div>
       <div class="order-item-spice">
-        ${item.spicy.map(s=>`<button class="spice-btn ${selectedSpicy[item.id]===s?'selected':''}" data-spice="${s}" onclick="selectSpicy(${item.id},'${s}',this)">${getSpiceIcon(s)} ${s}</button>`).join('')}
+        <select id="spice-sel-${item.id}" onchange="selectSpicyDrop(${item.id},this.value)" style="width:100%;padding:5px 8px;border-radius:8px;border:1.5px solid var(--line2);background:var(--bg2);font-size:11px;font-weight:700;color:var(--ink);font-family:'Outfit',sans-serif;outline:none;cursor:pointer">
+          ${item.spicy.map(s=>`<option value="${s}" ${(selectedSpicy[item.id]||item.spicy[0])===s?'selected':''}>${getSpiceIcon(s)} ${s}</option>`).join('')}
+        </select>
       </div>
       <button class="order-item-add" onclick="addToCart('${item.name}',${item.price},${item.halfPrice},${item.id})">+ Add</button>
     </div>
@@ -6958,6 +7102,9 @@ function selectSpicy(id,val,btn){
   const parent=btn.closest('.order-item-spice');
   parent.querySelectorAll('.spice-btn').forEach(b=>b.classList.remove('selected'));
   btn.classList.add('selected');
+}
+function selectSpicyDrop(id,val){
+  selectedSpicy[id]=val;
 }
 
 function selectPortion(id,portion,fullPrice,halfPrice,btn){
@@ -6983,6 +7130,10 @@ function selectPortion(id,portion,fullPrice,halfPrice,btn){
 
 function buildOrderMenu(items){
   const g=document.getElementById('orderMenu'); if(!g) return;
+  if(!items || !items.length){
+    g.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px 10px;color:var(--ink3);font-size:12px;font-weight:600">⏳ Menu Firebase se load ho raha hai...</div>';
+    return;
+  }
   g.innerHTML=items.map(renderOrderItem).join('');
   if(typeof _updateMenuCountBadge==='function') _updateMenuCountBadge();
 }
@@ -7095,7 +7246,9 @@ async function placeOrder(){
   if(!cart.length){showToast('⚠️ Cart me items add karo pehle!');return;}
   const tbl = (typeof getSelectedTable==='function') ? getSelectedTable() : document.getElementById('cartTableSelect')?.value;
   if(!tbl){showToast('⚠️ Table select karo ya manually type karo!');return;}
-  const instruct = document.getElementById('chefInstructions')?.value || '';
+  const _instrDrop = document.getElementById('chefInstructions')?.value || '';
+  const _instrCustom = document.getElementById('chefInstructionsCustom')?.value?.trim() || '';
+  const instruct = [_instrDrop, _instrCustom].filter(Boolean).join(', ');
   const custName = document.getElementById('cartCustomerName')?.value?.trim() || 'Dine-In Customer';
   const num = 1050 + Math.floor(Math.random()*50);
 
@@ -7153,6 +7306,7 @@ async function placeOrder(){
   // Cart clear + UI reset — Firebase save se PEHLE karo
   cart=[]; renderCart();
   if(document.getElementById('chefInstructions')) document.getElementById('chefInstructions').value='';
+  if(document.getElementById('chefInstructionsCustom')) document.getElementById('chefInstructionsCustom').value='';
   if(document.getElementById('cartTableManual')) document.getElementById('cartTableManual').value='';
   if(document.getElementById('cartCustomerName')) document.getElementById('cartCustomerName').value='';
   if(document.getElementById('selectedTableShow')) document.getElementById('selectedTableShow').textContent='📍 Koi table select nahi';
@@ -15758,14 +15912,10 @@ async function _loadMenuAndCatsFromFirebase() {
       fbItems.push(item);
     });
     if (fbItems.length > 0) {
-      var baseIds = [1,2,3,4,5,6,7,8,9,10,11,12,13,14];
-      // Remove previously loaded captain items
-      for (var i = menuItems.length - 1; i >= 0; i--) {
-        if (!baseIds.includes(menuItems[i].id)) menuItems.splice(i, 1);
-      }
-      // Add fresh from Firebase
+      // Pehle se hardcoded base items nahi hain — sab Firebase se hi load karo
+      menuItems.length = 0;
       fbItems.forEach(function(it) {
-        if (!baseIds.includes(it.id)) menuItems.push(it);
+        menuItems.push(it);
       });
     }
 
@@ -17257,24 +17407,36 @@ function mobShowPanel(panel) {
   const actionBtns = document.getElementById('orderActionBtns');
   const menuTab = document.getElementById('mobTabMenu');
   const cartTab = document.getElementById('mobTabCart');
+  const floatMenuBtn = document.getElementById('floatMenuBtn');
+  const floatCartBtn = document.getElementById('floatCartBtn');
 
-  if (window.innerWidth > 768) return; // Desktop pe toggle nahi
+  // Desktop pe bhi float buttons se toggle karne ki suvidha
+  const isMobileOrFloat = window.innerWidth <= 1024;
+  if (!isMobileOrFloat) {
+    // Desktop wide screen — dono show karo
+    if (menuPanel) { menuPanel.style.display = ''; menuPanel.style.width = ''; }
+    if (cartPanel) { cartPanel.style.display = 'flex'; cartPanel.style.width = '330px'; }
+    return;
+  }
 
   if (panel === 'menu') {
-    if (menuPanel) { menuPanel.style.display = 'flex'; menuPanel.style.width = '100%'; }
+    if (menuPanel) { menuPanel.style.display = 'flex'; menuPanel.style.width = '100%'; menuPanel.style.flexDirection = 'column'; }
     if (cartPanel) { cartPanel.style.display = 'none'; }
     if (actionBtns) { actionBtns.style.display = 'none'; }
     if (menuTab) menuTab.classList.add('active');
     if (cartTab) cartTab.classList.remove('active');
+    // Float button highlight
+    if (floatMenuBtn) { floatMenuBtn.style.boxShadow = '0 6px 20px rgba(5,150,105,.7), 0 0 0 3px rgba(5,150,105,.3)'; }
+    if (floatCartBtn) { floatCartBtn.style.boxShadow = '0 6px 20px rgba(29,78,216,.45)'; }
   } else {
     if (menuPanel) { menuPanel.style.display = 'none'; }
     if (cartPanel) { 
       cartPanel.style.display = 'flex'; 
       cartPanel.style.width = '100%';
       cartPanel.style.flexDirection = 'column';
-      cartPanel.style.height = 'auto';
+      cartPanel.style.height = 'calc(100vh - 60px)';
       cartPanel.style.maxHeight = 'none';
-      cartPanel.style.overflow = 'visible';
+      cartPanel.style.overflow = 'auto';
       cartPanel.style.position = 'relative';
     }
     if (actionBtns) { 
@@ -17294,8 +17456,11 @@ function mobShowPanel(panel) {
     }
     if (menuTab) menuTab.classList.remove('active');
     if (cartTab) cartTab.classList.add('active');
+    // Float button highlight
+    if (floatCartBtn) { floatCartBtn.style.boxShadow = '0 6px 20px rgba(29,78,216,.7), 0 0 0 3px rgba(29,78,216,.3)'; }
+    if (floatMenuBtn) { floatMenuBtn.style.boxShadow = '0 6px 20px rgba(5,150,105,.45)'; }
     // Scroll to top of cart
-    if (cartPanel) setTimeout(() => { cartPanel.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
+    if (cartPanel) setTimeout(() => { cartPanel.scrollTop = 0; }, 50);
   }
 }
 
@@ -17320,6 +17485,17 @@ if (typeof renderCart === 'function') {
     if (badge && window.cart) {
       const count = window.cart.reduce((a,i) => a + i.qty, 0);
       badge.textContent = count > 0 ? ` (${count})` : '';
+    }
+    // Floating cart badge update karo
+    const floatBadge = document.getElementById('floatCartBadge');
+    if (floatBadge && window.cart) {
+      const count = window.cart.reduce((a,i) => a + i.qty, 0);
+      if (count > 0) {
+        floatBadge.textContent = count;
+        floatBadge.style.display = 'flex';
+      } else {
+        floatBadge.style.display = 'none';
+      }
     }
     // Mobile pe cart tab badge update karo
     const cartTab = document.getElementById('mobTabCart');
@@ -18319,37 +18495,55 @@ window.addEventListener('load',function(){
 console.log('🔔 CaptainDash Rich Pop Notifications v2.0 loaded!');
 </script>
 
-<!-- ===== ORDER SUMMARY MODAL ===== -->
-<div id="orderSummaryOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:16px">
-  <div style="background:var(--white);border-radius:18px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.25);font-family:'Outfit',sans-serif">
-    <div style="background:linear-gradient(135deg,#059669,#047857);border-radius:18px 18px 0 0;padding:18px 20px;display:flex;align-items:center;justify-content:space-between">
-      <div>
-        <div style="font-size:17px;font-weight:900;color:#fff;letter-spacing:-.3px">📋 Order Summary</div>
-        <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:2px">Review karo, phir Place Order karo</div>
-      </div>
-      <button onclick="closeOrderSummary()" style="background:rgba(255,255,255,0.2);border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:16px;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900">✕</button>
+<!-- ===== ORDER CONFIRM PAGE (full page, same as other pages) ===== -->
+<div class="page" id="page-orderconfirm" style="padding:20px 24px;overflow-y:auto">
+  <!-- Header -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+    <button onclick="closeOrderSummary()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--white);cursor:pointer;font-size:12px;font-weight:700;color:var(--ink);font-family:'Outfit',sans-serif">← Wapas</button>
+    <div>
+      <div style="font-size:17px;font-weight:900;color:var(--ink);letter-spacing:-.3px">📋 Order Review</div>
+      <div style="font-size:11px;color:var(--ink3);margin-top:1px">Check karo, phir confirm karo</div>
     </div>
-    <div style="padding:18px 20px">
-      <div style="background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px">
-        <div style="display:flex;gap:16px;flex-wrap:wrap">
-          <div><span style="color:var(--ink3);font-weight:600">🪑 Table:</span> <span id="sumTable" style="font-weight:800;color:var(--ink)">—</span></div>
-          <div><span style="color:var(--ink3);font-weight:600">👤 Customer:</span> <span id="sumCustomer" style="font-weight:800;color:var(--ink)">—</span></div>
-        </div>
-        <div style="margin-top:6px"><span style="color:var(--ink3);font-weight:600">👨‍🍳 Instructions:</span> <span id="sumInstructions" style="font-weight:700;color:var(--ink)">—</span></div>
+  </div>
+
+  <!-- Order info card -->
+  <div style="background:var(--white);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:16px;box-shadow:var(--sh-sm)">
+    <div style="font-size:11px;font-weight:800;color:var(--ink2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">📝 Order Details</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;margin-bottom:10px">
+      <div style="background:var(--bg2);border-radius:8px;padding:9px 12px">
+        <div style="color:var(--ink3);font-weight:600;margin-bottom:3px">🪑 Table</div>
+        <div style="font-weight:800;color:var(--ink)" id="sumTable">—</div>
       </div>
-      <div style="font-size:11px;font-weight:800;color:var(--ink2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Order Items</div>
-      <div id="sumItemsList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px"></div>
-      <div style="background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:12px 14px">
-        <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:4px"><span>Subtotal</span><span id="sumSubtotal">₹0</span></div>
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink3);margin-bottom:4px"><span>GST (5%)</span><span id="sumGST">₹0</span></div>
-        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink3);margin-bottom:8px"><span>Service (10%)</span><span id="sumService">₹0</span></div>
-        <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;border-top:2px solid var(--line);padding-top:8px"><span>Grand Total</span><span style="color:var(--G600)" id="sumGrand">₹0</span></div>
+      <div style="background:var(--bg2);border-radius:8px;padding:9px 12px">
+        <div style="color:var(--ink3);font-weight:600;margin-bottom:3px">👤 Customer</div>
+        <div style="font-weight:800;color:var(--ink)" id="sumCustomer">—</div>
       </div>
     </div>
-    <div style="padding:0 20px 20px;display:flex;gap:10px">
-      <button onclick="closeOrderSummary()" style="flex:1;padding:11px;border:1.5px solid var(--line);border-radius:10px;background:#fff;cursor:pointer;font-size:13px;font-weight:700;color:var(--ink);font-family:'Outfit',sans-serif">← Back</button>
-      <button onclick="confirmAndPlaceOrder()" style="flex:2;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#059669,#047857);cursor:pointer;font-size:14px;font-weight:900;color:#fff;font-family:'Outfit',sans-serif;letter-spacing:-.2px">🚀 Place Order</button>
+    <div style="background:var(--bg2);border-radius:8px;padding:9px 12px;font-size:12px">
+      <div style="color:var(--ink3);font-weight:600;margin-bottom:3px">👨‍🍳 Chef Instructions</div>
+      <div style="font-weight:700;color:var(--ink)" id="sumInstructions">—</div>
     </div>
+  </div>
+
+  <!-- Items list -->
+  <div style="background:var(--white);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:16px;box-shadow:var(--sh-sm)">
+    <div style="font-size:11px;font-weight:800;color:var(--ink2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">🛒 Order Items</div>
+    <div id="sumItemsList" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+  <!-- Bill summary -->
+  <div style="background:var(--white);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:20px;box-shadow:var(--sh-sm)">
+    <div style="font-size:11px;font-weight:800;color:var(--ink2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">💰 Bill Summary</div>
+    <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;padding:6px 0;border-bottom:1px solid var(--line)"><span style="color:var(--ink3)">Subtotal</span><span id="sumSubtotal">₹0</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--line)"><span style="color:var(--ink3)">GST (5%)</span><span id="sumGST">₹0</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid var(--line)"><span style="color:var(--ink3)">Service Charge (10%)</span><span id="sumService">₹0</span></div>
+    <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:900;padding-top:10px;margin-top:4px"><span>Grand Total</span><span style="color:var(--G600)" id="sumGrand">₹0</span></div>
+  </div>
+
+  <!-- Action buttons -->
+  <div style="display:flex;gap:12px;padding-bottom:20px">
+    <button onclick="closeOrderSummary()" style="flex:1;padding:13px;border:1.5px solid var(--line);border-radius:12px;background:var(--white);cursor:pointer;font-size:13px;font-weight:700;color:var(--ink);font-family:'Outfit',sans-serif">← Back</button>
+    <button onclick="confirmAndPlaceOrder()" style="flex:2;padding:13px;border:none;border-radius:12px;background:linear-gradient(135deg,#059669,#047857);cursor:pointer;font-size:15px;font-weight:900;color:#fff;font-family:'Outfit',sans-serif;letter-spacing:-.2px;box-shadow:0 4px 16px rgba(5,150,105,.3)">🚀 Place Order</button>
   </div>
 </div>
 
@@ -18362,18 +18556,21 @@ function openOrderSummary() {
   document.getElementById('sumTable').textContent = tbl;
   var cust = document.getElementById('cartCustomerName')?.value?.trim() || 'Dine-In Customer';
   document.getElementById('sumCustomer').textContent = cust;
-  var instr = document.getElementById('chefInstructions')?.value?.trim() || 'None';
+  var _iDrop = document.getElementById('chefInstructions')?.value?.trim() || '';
+  var _iCustom = document.getElementById('chefInstructionsCustom')?.value?.trim() || '';
+  var instr = [_iDrop, _iCustom].filter(Boolean).join(', ') || 'None';
   document.getElementById('sumInstructions').textContent = instr;
   var list = document.getElementById('sumItemsList');
   var sub = 0;
   list.innerHTML = cart.map(function(it) {
     sub += it.price * it.qty;
-    return '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--white);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-size:13px">' +
-      '<div><div style="font-weight:700;color:var(--ink)">' + it.name + '</div>' +
-      '<div style="font-size:10px;color:var(--ink3);margin-top:2px">' + (it.portion === 'Half' ? '🥣 Half' : '🍽️ Full') + ' · ' + (it.spice || 'Normal') + '</div></div>' +
-      '<div style="display:flex;align-items:center;gap:10px">' +
-      '<span style="font-size:12px;color:var(--ink3);font-weight:600">×' + it.qty + '</span>' +
-      '<span style="font-weight:800;color:var(--G700);font-family:\'JetBrains Mono\',monospace">₹' + (it.price * it.qty) + '</span>' +
+    var spiceIcon = {'Jain':'🌱','Normal':'😊','Spicy':'🌶️','Medium':'🌶️','Extra Spicy':'🔥🔥'}[it.spice] || '😊';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:11px 14px">' +
+      '<div style="flex:1"><div style="font-size:13px;font-weight:800;color:var(--ink)">' + it.name + '</div>' +
+      '<div style="font-size:10px;color:var(--ink3);margin-top:3px">' + (it.portion === 'Half' ? '🥣 Half' : '🍽️ Full') + ' · ' + spiceIcon + ' ' + (it.spice || 'Normal') + '</div></div>' +
+      '<div style="display:flex;align-items:center;gap:12px">' +
+      '<span style="font-size:12px;color:var(--ink3);font-weight:600;background:var(--white);border:1px solid var(--line);border-radius:6px;padding:2px 8px">×' + it.qty + '</span>' +
+      '<span style="font-size:13px;font-weight:900;color:var(--G700);font-family:\'JetBrains Mono\',monospace;min-width:52px;text-align:right">₹' + (it.price * it.qty) + '</span>' +
       '</div></div>';
   }).join('');
   var gst = Math.round(sub * 0.05);
@@ -18383,21 +18580,24 @@ function openOrderSummary() {
   document.getElementById('sumGST').textContent = '₹' + gst;
   document.getElementById('sumService').textContent = '₹' + svc;
   document.getElementById('sumGrand').textContent = '₹' + grand;
-  var overlay = document.getElementById('orderSummaryOverlay');
-  overlay.style.display = 'flex';
+  // Full page show karo — same tarah jaise showPage() karta hai
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('page-orderconfirm').classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  document.querySelector('.topbar-title').innerHTML = 'Captain <span>Order Review</span>';
+  var contentEl = document.querySelector('.content');
+  if(contentEl) contentEl.scrollTop = 0;
 }
 function closeOrderSummary() {
-  document.getElementById('orderSummaryOverlay').style.display = 'none';
+  // Wapas Place Order page pe jaao
+  showPage('orderplace', document.querySelector('.nav-item[onclick*=orderplace]') || null);
 }
 function confirmAndPlaceOrder() {
-  closeOrderSummary();
   placeOrder();
+  setTimeout(function(){
+    showPage('orderplace', document.querySelector('.nav-item[onclick*=orderplace]') || null);
+  }, 100);
 }
-document.addEventListener('DOMContentLoaded', function() {
-  document.getElementById('orderSummaryOverlay').addEventListener('click', function(e) {
-    if (e.target === this) closeOrderSummary();
-  });
-});
 </script>
 </body>
 </html>
