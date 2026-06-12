@@ -432,7 +432,8 @@ body {
 .topbar-title {
   font-size: 16px;
   font-weight: 800;
-  flex: 1;
+  flex: 0 0 auto;
+  margin-right: auto;
   color: var(--ink);
   letter-spacing: -.4px;
 }
@@ -454,18 +455,32 @@ body {
   font-weight: 500;
 }
 .topbar-search-flat {
-  background: rgba(0,0,0,.04);
-  border: 1.5px solid rgba(16,185,129,.3);
+  background: linear-gradient(135deg, rgba(16,185,129,.06) 0%, rgba(5,150,105,.04) 100%);
+  border: 1.5px solid rgba(16,185,129,.5);
   border-radius: var(--r8);
   padding: 7px 14px;
   display: flex;
   align-items: center;
   gap: 8px;
   cursor: text;
-  min-width: 220px;
-  transition: all .2s;
+  min-width: 240px;
+  transition: all .25s var(--ease-smooth);
+  box-shadow: 0 0 0 2px rgba(16,185,129,.08), 0 0 12px rgba(16,185,129,.12), inset 0 1px 0 rgba(255,255,255,.6);
+  animation: searchGlowPulse 3s ease-in-out infinite;
 }
-.topbar-search-flat:hover { border-color: var(--G500); background: var(--G50); box-shadow: 0 0 0 3px rgba(16,185,129,.08); }
+.topbar-search-flat:hover {
+  border-color: var(--G500);
+  background: linear-gradient(135deg, rgba(16,185,129,.1) 0%, rgba(5,150,105,.07) 100%);
+  box-shadow: 0 0 0 3px rgba(16,185,129,.15), 0 0 20px rgba(16,185,129,.2), inset 0 1px 0 rgba(255,255,255,.8);
+  transform: translateY(-1px);
+}
+.topbar-search-flat .svg-icon, .topbar-search-flat svg { color: var(--G500) !important; }
+.topbar-search-flat span { color: var(--ink3) !important; font-size: 12.5px; font-weight: 500; }
+
+@keyframes searchGlowPulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(16,185,129,.08), 0 0 10px rgba(16,185,129,.10), inset 0 1px 0 rgba(255,255,255,.6); }
+  50%       { box-shadow: 0 0 0 3px rgba(16,185,129,.14), 0 0 18px rgba(16,185,129,.18), inset 0 1px 0 rgba(255,255,255,.7); }
+}
 
 
 .topbar-btn {
@@ -3136,7 +3151,36 @@ tbody td { color: var(--ink2) !important; }
 @media (max-width: 768px) {
   /* Show hamburger + bottom nav */
   .mob-menu-btn    { display: flex; }
-  .mob-bottom-nav  { display: flex; }
+  .mob-bottom-nav  { 
+    display: flex !important; 
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 999999 !important;
+  }
+  /* Push all floating action buttons above the bottom nav */
+  #rtsMobCartFab,
+  #toast {
+    bottom: calc(90px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+  #captainNotifTrayBtn {
+    top: 110px !important;
+    bottom: auto !important;
+    right: 10px !important;
+  }
+  #captainNotifTray {
+    top: 170px !important;
+    bottom: auto !important;
+    right: 10px !important;
+  }
+
+  body, .main, .sidebar {
+    height: 100dvh !important;
+  }
+  #page-orderplace {
+    height: calc(100vh - 150px) !important;
+  }
 
   /* Sidebar becomes a drawer */
   .sidebar {
@@ -3176,7 +3220,7 @@ tbody td { color: var(--ink2) !important; }
 
   /* Content padding mobile — bottom nav ke liye extra space */
   .content {
-    padding: 16px 14px 140px !important;
+    padding: 16px 14px 110px !important;
     -webkit-overflow-scrolling: touch !important;
     overflow-y: auto !important;
   }
@@ -3248,6 +3292,18 @@ tbody td { color: var(--ink2) !important; }
   }
   #orderCartPanel.mob-visible {
     display: flex !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    z-index: 2000 !important;
+    border-radius: 0 !important;
+    padding: 14px 14px 90px !important;
+    background: var(--white) !important;
   }
   #page-orderplace > div > div:first-child {
     display: flex !important;
@@ -3295,35 +3351,14 @@ tbody td { color: var(--ink2) !important; }
     letter-spacing: -.2px !important;
   }
 
-  /* Mobile Order Toggle Tabs — show menu/cart toggle */
+  #orderCartPanel.mob-visible #orderActionBtns {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+  }
   .mob-order-tabs {
-    display: flex !important;
-    gap: 8px;
-    margin-bottom: 0px;
-    background: var(--white);
-    border-bottom: 1px solid var(--line);
-    border-radius: 0;
-    padding: 8px 12px;
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    box-shadow: 0 2px 8px rgba(0,0,0,.06);
-  }
-  .mob-order-tab {
-    flex: 1;
-    padding: 8px;
-    text-align: center;
-    font-size: 13px;
-    font-weight: 800;
-    border-radius: var(--r8);
-    cursor: pointer;
-    transition: all .2s;
-    color: var(--ink3);
-  }
-  .mob-order-tab.active {
-    background: var(--G700);
-    color: #fff;
-    box-shadow: 0 2px 8px rgba(5,150,105,.3);
+    display: none !important;
   }
 
   /* Form rows on mobile */
@@ -3368,7 +3403,7 @@ tbody td { color: var(--ink2) !important; }
   }
 
   /* Theme switcher on mobile */
-  .theme-switcher { bottom: 70px; right: 12px; }
+  /* theme-switcher repositioned via inline style */
 
   /* Analytics grid */
   .lks-stats-bar { grid-template-columns: repeat(2, 1fr); }
@@ -3453,6 +3488,17 @@ tbody td { color: var(--ink2) !important; }
 </style>
 
 
+
+<style>
+#captainNotifTrayBtn { display: none !important; }
+#rtsMobCartFab { display: none !important; }
+</style>
+
+<style id="hide-floating-btns">
+#ariaFab { display: none !important; }
+#rtsMobCartFab { display: none !important; }
+#captainNotifTrayBtn { display: none !important; }
+</style>
 </head>
 <body class="theme-dark-forest">
 <!-- LOADING SCREEN -->
@@ -3467,10 +3513,9 @@ tbody td { color: var(--ink2) !important; }
 <div class="bg-mesh"></div>
 <div class="particles" id="particleContainer"></div>
 
-<!-- THEME SWITCHER -->
-<div class="theme-switcher" id="themeSwitcher">
-  <div class="theme-btn-toggle" onclick="toggleThemePanel()" title="Change Theme">🎨</div>
-  <div class="theme-panel" id="themePanel" style="display:none">
+<!-- THEME SWITCHER — panel only, no floating btn -->
+<div id="themeSwitcher" style="position:fixed;z-index:99999;display:none;">
+  <div class="theme-panel" id="themePanel" style="display:flex">
     <div style="font-size:10px;font-weight:800;color:var(--ink3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Themes</div>
     <div class="theme-pill active" id="tp-dark-forest" onclick="applyTheme('dark-forest')"><div class="theme-dot" style="background:linear-gradient(135deg,#047857,#10b981)"></div>Dark Forest</div>
     <div class="theme-pill" id="tp-midnight-ruby" onclick="applyTheme('midnight-ruby')"><div class="theme-dot" style="background:linear-gradient(135deg,#991b1b,#ef4444)"></div>Midnight Ruby</div>
@@ -3872,11 +3917,37 @@ tbody td { color: var(--ink2) !important; }
     </div>
     <div class="nav-section">
       <div class="nav-label">Smart</div>
-      <div class="nav-item" onclick="showPage('notifications',this)"><span class="nav-icon"><span class="svg-icon svg-icon-notifications" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span></span> <span>Notifications</span> <span class="nav-badge red">5</span></div>
+      <div class="nav-item" onclick="showPage('notifications',this)"><span class="nav-icon"><span class="svg-icon svg-icon-notifications" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span></span> <span>Notifications</span> <span class="nav-badge red" id="sidebarNotifBadge">5</span></div>
       <div class="nav-item" onclick="showPage('ai',this)"><span class="nav-icon"><span class="svg-icon svg-icon-ai" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2z"/><circle cx="9" cy="14" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="14" r="1" fill="currentColor" stroke="none"/></svg></span></span> <span>AI Assistant</span></div>
       <div class="nav-item" onclick="showPage('settings',this)"><span class="nav-icon"><span class="svg-icon svg-icon-settings" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span></span> <span>Settings</span></div>
     </div>
   </div>
+  <!-- ── SIDEBAR QUICK ACTIONS: Theme + Notification ── -->
+  <div style="display:none;padding:8px 12px 6px;border-top:1px solid var(--line)">
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--ink5);font-weight:700;padding:0 0 5px 2px">Quick Access</div>
+    <div style="display:flex;gap:6px">
+      <!-- Theme -->
+      <div onclick="toggleThemePanel()" title="Change Theme" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 8px;background:var(--bg);border:1.5px solid var(--line2);border-radius:var(--r8);cursor:pointer;font-size:12px;font-weight:700;color:var(--ink3);transition:all .18s"
+        onmouseover="this.style.background='var(--G50)';this.style.borderColor='var(--G400)';this.style.color='var(--G700)';this.style.transform='translateY(-1px)'"
+        onmouseout="this.style.background='var(--bg)';this.style.borderColor='var(--line2)';this.style.color='var(--ink3)';this.style.transform='none'">
+        <span style="font-size:15px">🎨</span><span>Theme</span>
+      </div>
+      <!-- Notification -->
+      <div onclick="showPage('notifications',null);markNotifRead()" title="Notifications" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:7px 8px;background:var(--bg);border:1.5px solid var(--line2);border-radius:var(--r8);cursor:pointer;font-size:12px;font-weight:700;color:var(--ink3);transition:all .18s;position:relative"
+        onmouseover="this.style.background='var(--red-bg)';this.style.borderColor='var(--red)';this.style.color='var(--red)';this.style.transform='translateY(-1px)'"
+        onmouseout="this.style.background='var(--bg)';this.style.borderColor='var(--line2)';this.style.color='var(--ink3)';this.style.transform='none'">
+        <span style="position:relative;display:inline-flex">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span style="position:absolute;top:-4px;right:-5px;width:8px;height:8px;border-radius:50%;background:var(--red);border:1.5px solid #fff;animation:siplDotPulse 1.5s ease-in-out infinite"></span>
+        </span>
+        <span>Alerts</span>
+      </div>
+    </div>
+  </div>
+  <style>
+  @keyframes siploraGlow { from { filter: drop-shadow(0 0 2px rgba(109,40,217,.3)); } to { filter: drop-shadow(0 0 6px rgba(109,40,217,.7)); } }
+  @keyframes siplDotPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.6; transform:scale(1.3); } }
+  </style>
   <div class="sidebar-footer">
     <div class="captain-profile" onclick="document.getElementById('loginOverlay').classList.remove('hidden')">
       <div class="captain-avatar">MF</div>
@@ -3891,11 +3962,13 @@ tbody td { color: var(--ink2) !important; }
   <div class="topbar">
     <div class="topbar-title">Captain <span>Dashboard</span></div>
     <div class="topbar-search-flat" onclick="openMagicSearch('globalSearch','globalSearchFilter','Orders, tables, items dhundo...')" title="Global Search">
-      <svg style="vertical-align:middle;display:inline-block;font-size:12px;color:var(--G500);flex-shrink:0" style="font-size:12px;color:var(--G500);flex-shrink:0" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <svg style="vertical-align:middle;display:inline-block;font-size:12px;color:var(--G500);flex-shrink:0" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <span style="font-size:12.5px;color:var(--ink4);font-weight:500">Search orders, items, tables...</span>
     </div>
-    <div class="online-pill"><div class="pulse"></div> System Online</div>
-    <div class="topbar-time" id="clock">--:--:--</div>
+    <!-- 🎨 Theme button — search bar ke baad, inline in topbar -->
+    <div class="topbar-btn" id="topbarThemeBtn" onclick="toggleThemePanel()" title="Change Theme" style="position:relative;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+    </div>
     <div class="topbar-btn" onclick="showPage('notifications',null);markNotifRead()"><span class="svg-icon svg-icon-notifications" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span><div class="notif-dot" id="notifDot"></div></div>
     <div class="topbar-btn" onclick="showPage('settings',null)"><span class="svg-icon svg-icon-settings" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex-shrink:0"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span></div>
     <div class="topbar-btn" onclick="document.getElementById('loginOverlay').classList.remove('hidden')"><svg style="vertical-align:middle;display:inline-block;color:var(--G600)" style="color:var(--G600)" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5.52 19c.64-2.2 1.84-3 3.22-3h6.52c1.38 0 2.58.8 3.22 3"/><circle cx="12" cy="10" r="3"/><circle cx="12" cy="12" r="10"/></svg></div>
@@ -3988,8 +4061,8 @@ tbody td { color: var(--ink2) !important; }
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
             <div>
               <div class="stat-label">💰 Live Revenue</div>
-              <div class="stat-value" id="dashRevenueLive" style="color:#6ee7b7;font-size:26px">₹48,290</div>
-              <div class="stat-change" style="color:rgba(255,255,255,.65)">↑ 12.4% vs yesterday</div>
+              <div class="stat-value" id="dashRevenueLive" style="color:#6ee7b7;font-size:26px">₹0</div>
+              <div class="stat-change" style="color:rgba(255,255,255,.65)" id="dashRevenueChg">Loading...</div>
             </div>
             <div style="text-align:right;font-size:10px;color:rgba(255,255,255,.5);font-weight:600">
               <div>Target</div>
@@ -4006,26 +4079,26 @@ tbody td { color: var(--ink2) !important; }
         <div class="stat-card orange">
           <div class="stat-icon">📦</div>
           <div class="stat-label">Total Orders</div>
-          <div class="stat-value orange" id="dashOrderCount">184</div>
-          <div class="stat-change up">↑ 8 new in last hour</div>
-          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
-            <span style="font-size:10px;background:var(--orange-bg);color:var(--orange);border-radius:5px;padding:2px 7px;font-weight:700">🍽 Dine 98</span>
-            <span style="font-size:10px;background:var(--blue-bg);color:var(--blue);border-radius:5px;padding:2px 7px;font-weight:700">🛵 Del 67</span>
-            <span style="font-size:10px;background:var(--teal-bg);color:var(--teal);border-radius:5px;padding:2px 7px;font-weight:700">🥡 Take 19</span>
+          <div class="stat-value orange" id="dashOrderCount">0</div>
+          <div class="stat-change up" id="dashOrderChg">Loading...</div>
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap" id="dashOrderTypeRow">
+            <span id="dashDineTag" style="font-size:10px;background:var(--orange-bg);color:var(--orange);border-radius:5px;padding:2px 7px;font-weight:700">🍽 Dine 0</span>
+            <span id="dashDelTag" style="font-size:10px;background:var(--blue-bg);color:var(--blue);border-radius:5px;padding:2px 7px;font-weight:700">🛵 Del 0</span>
+            <span id="dashTakeTag" style="font-size:10px;background:var(--teal-bg);color:var(--teal);border-radius:5px;padding:2px 7px;font-weight:700">🥡 Take 0</span>
           </div>
         </div>
         <div class="stat-card blue">
-          <div class="stat-icon">⏱️</div>
-          <div class="stat-label">Avg Delivery Time</div>
-          <div class="stat-value blue">28m</div>
-          <div class="stat-change up">↓ 4 min faster than avg</div>
-          <div style="margin-top:8px;font-size:10px;color:var(--ink3)">Kitchen prep: <b style="color:var(--blue)">14m</b> &nbsp;|&nbsp; Dispatch: <b style="color:var(--teal)">14m</b></div>
+          <div class="stat-icon">🍳</div>
+          <div class="stat-label">Avg Kitchen Time</div>
+          <div class="stat-value blue" id="dashAvgDelivery">—</div>
+          <div class="stat-change" id="dashAvgDeliveryChg">Calculating...</div>
+          <div style="margin-top:8px;font-size:10px;color:var(--ink3)" id="dashAvgDeliveryDetail">Order se serve hone tak ka time</div>
         </div>
         <div class="stat-card red">
           <div class="stat-icon">🪑</div>
           <div class="stat-label">Tables Occupied</div>
-          <div class="stat-value red" id="dashTableCount">9/15</div>
-          <div class="stat-change">60% occupancy</div>
+          <div class="stat-value red" id="dashTableCount">—</div>
+          <div class="stat-change" id="dashTableChg">Loading...</div>
           <div style="margin-top:8px;display:flex;gap:3px;flex-wrap:wrap" id="dashTableDots"></div>
         </div>
       </div>
@@ -4034,28 +4107,28 @@ tbody td { color: var(--ink2) !important; }
       <div class="cards-grid-5" style="margin-bottom:20px">
         <div class="stat-card purple" style="padding:14px">
           <div class="stat-icon">⭐</div><div class="stat-label">Avg Rating</div>
-          <div class="stat-value purple" style="font-size:20px">4.7</div>
-          <div class="stat-change up">↑ 0.2 this week</div>
+          <div class="stat-value purple" style="font-size:20px" id="dashAvgRating">—</div>
+          <div class="stat-change" id="dashAvgRatingChg">Orders se calculate hoga</div>
         </div>
         <div class="stat-card green" style="padding:14px">
-          <div class="stat-icon">🔁</div><div class="stat-label">Repeat Customers</div>
-          <div class="stat-value green" style="font-size:20px">68%</div>
-          <div class="stat-change up">↑ 3% this month</div>
+          <div class="stat-icon">👥</div><div class="stat-label">Total Customers</div>
+          <div class="stat-value green" style="font-size:20px" id="dashTotalCustomers">—</div>
+          <div class="stat-change" id="dashTotalCustomersChg">Unique customers today</div>
         </div>
         <div class="stat-card yellow" style="padding:14px">
-          <div class="stat-icon">🎫</div><div class="stat-label">Tokens Today</div>
-          <div class="stat-value yellow" style="font-size:20px">42</div>
-          <div class="stat-change">12 pending</div>
+          <div class="stat-icon">🍽️</div><div class="stat-label">Items Sold Today</div>
+          <div class="stat-value yellow" style="font-size:20px" id="dashItemsSold">—</div>
+          <div class="stat-change" id="dashItemsSoldChg">Firebase orders se</div>
         </div>
         <div class="stat-card teal" style="padding:14px">
-          <div class="stat-icon">🎁</div><div class="stat-label">Loyalty Points</div>
-          <div class="stat-value teal" style="font-size:20px">8.4K</div>
-          <div class="stat-change up">↑ 340 today</div>
+          <div class="stat-icon">💵</div><div class="stat-label">Avg Order Value</div>
+          <div class="stat-value teal" style="font-size:20px" id="dashAvgOrderVal">—</div>
+          <div class="stat-change" id="dashAvgOrderValChg">Per order average</div>
         </div>
         <div class="stat-card" style="padding:14px;border-top:3px solid var(--rose)">
-          <div class="stat-icon">⚠️</div><div class="stat-label" style="color:var(--rose)">Low Stock Items</div>
-          <div class="stat-value" style="font-size:20px;color:var(--rose)" id="dashLowStockCount">3</div>
-          <div class="stat-change" style="color:var(--rose)">Needs restock</div>
+          <div class="stat-icon">⚠️</div><div class="stat-label" style="color:var(--rose)">Cancelled Orders</div>
+          <div class="stat-value" style="font-size:20px;color:var(--rose)" id="dashCancelCount">—</div>
+          <div class="stat-change" style="color:var(--rose)" id="dashCancelChg">Today's cancellations</div>
         </div>
       </div>
 
@@ -4155,47 +4228,8 @@ tbody td { color: var(--ink2) !important; }
             <div class="table-head-title">🏆 Today's Best Sellers</div>
             <span style="font-size:10px;color:var(--ink3);font-weight:600">Live count</span>
           </div>
-          <div style="padding:10px 14px">
-            <div class="best-dish-row">
-              <div class="best-dish-rank" style="background:#fef3c7;color:#d97706">🥇</div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:12.5px;font-weight:800;color:var(--ink)">Paneer Butter Masala</div>
-                <div class="best-dish-bar-bg"><div class="best-dish-bar" style="width:90%;background:linear-gradient(90deg,#f59e0b,#d97706)"></div></div>
-              </div>
-              <div style="font-size:12px;font-weight:900;color:var(--amber);font-family:'JetBrains Mono',monospace">47 ×</div>
-            </div>
-            <div class="best-dish-row">
-              <div class="best-dish-rank" style="background:#f3f4f6;color:#6b7280">🥈</div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:12.5px;font-weight:800;color:var(--ink)">Margherita Pizza</div>
-                <div class="best-dish-bar-bg"><div class="best-dish-bar" style="width:72%;background:linear-gradient(90deg,#10b981,#059669)"></div></div>
-              </div>
-              <div style="font-size:12px;font-weight:900;color:var(--G600);font-family:'JetBrains Mono',monospace">34 ×</div>
-            </div>
-            <div class="best-dish-row">
-              <div class="best-dish-rank" style="background:#fef2f2;color:#dc2626">🥉</div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:12.5px;font-weight:800;color:var(--ink)">Chicken Burger</div>
-                <div class="best-dish-bar-bg"><div class="best-dish-bar" style="width:58%;background:linear-gradient(90deg,#3b82f6,#1d4ed8)"></div></div>
-              </div>
-              <div style="font-size:12px;font-weight:900;color:var(--blue);font-family:'JetBrains Mono',monospace">27 ×</div>
-            </div>
-            <div class="best-dish-row">
-              <div class="best-dish-rank" style="background:var(--teal-bg);color:var(--teal)">#4</div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:12.5px;font-weight:800;color:var(--ink)">Cold Coffee</div>
-                <div class="best-dish-bar-bg"><div class="best-dish-bar" style="width:44%;background:linear-gradient(90deg,#0f766e,#14b8a6)"></div></div>
-              </div>
-              <div style="font-size:12px;font-weight:900;color:var(--teal);font-family:'JetBrains Mono',monospace">21 ×</div>
-            </div>
-            <div class="best-dish-row">
-              <div class="best-dish-rank" style="background:var(--violet-bg);color:var(--violet)">#5</div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:12.5px;font-weight:800;color:var(--ink)">Dal Makhani</div>
-                <div class="best-dish-bar-bg"><div class="best-dish-bar" style="width:33%;background:linear-gradient(90deg,#7c3aed,#6d28d9)"></div></div>
-              </div>
-              <div style="font-size:12px;font-weight:900;color:var(--violet);font-family:'JetBrains Mono',monospace">16 ×</div>
-            </div>
+          <div style="padding:10px 14px" id="bestSellersContainer">
+            <div style="text-align:center;padding:20px;color:var(--ink3);font-size:12px">⏳ Loading from Firebase...</div>
           </div>
         </div>
 
@@ -4205,42 +4239,8 @@ tbody td { color: var(--ink2) !important; }
             <div class="table-head-title">👨‍🍳 Staff Performance Today</div>
             <span style="font-size:10px;color:var(--ink3);font-weight:600">Orders handled</span>
           </div>
-          <div style="padding:10px 14px">
-            <div class="dash-staff-row">
-              <div class="dash-staff-avatar" style="background:#059669">RK</div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:12px;font-weight:800;color:var(--ink)">Ravi Kumar <span style="font-size:10px;color:var(--ink3);font-weight:500">· Captain</span></div>
-                <div class="dash-staff-bar-wrap"><div class="dash-staff-bar" style="width:92%;background:linear-gradient(90deg,#34d399,#059669)"></div></div>
-              </div>
-              <div style="font-size:12px;font-weight:900;color:var(--G600);font-family:'JetBrains Mono',monospace">46</div>
-            </div>
-            <div class="dash-staff-row">
-              <div class="dash-staff-avatar" style="background:#1d4ed8">AS</div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:12px;font-weight:800;color:var(--ink)">Aman Sharma <span style="font-size:10px;color:var(--ink3);font-weight:500">· Waiter</span></div>
-                <div class="dash-staff-bar-wrap"><div class="dash-staff-bar" style="width:75%;background:linear-gradient(90deg,#93c5fd,#1d4ed8)"></div></div>
-              </div>
-              <div style="font-size:12px;font-weight:900;color:var(--blue);font-family:'JetBrains Mono',monospace">38</div>
-            </div>
-            <div class="dash-staff-row">
-              <div class="dash-staff-avatar" style="background:#d97706">PD</div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:12px;font-weight:800;color:var(--ink)">Priya Devi <span style="font-size:10px;color:var(--ink3);font-weight:500">· Waiter</span></div>
-                <div class="dash-staff-bar-wrap"><div class="dash-staff-bar" style="width:60%;background:linear-gradient(90deg,#fcd34d,#d97706)"></div></div>
-              </div>
-              <div style="font-size:12px;font-weight:900;color:var(--amber);font-family:'JetBrains Mono',monospace">30</div>
-            </div>
-            <div class="dash-staff-row">
-              <div class="dash-staff-avatar" style="background:#7c3aed">MK</div>
-              <div style="flex:1;min-width:0">
-                <div style="font-size:12px;font-weight:800;color:var(--ink)">Mohan K. <span style="font-size:10px;color:var(--ink3);font-weight:500">· Kitchen</span></div>
-                <div class="dash-staff-bar-wrap"><div class="dash-staff-bar" style="width:48%;background:linear-gradient(90deg,#c4b5fd,#7c3aed)"></div></div>
-              </div>
-              <div style="font-size:12px;font-weight:900;color:var(--violet);font-family:'JetBrains Mono',monospace">24</div>
-            </div>
-            <div style="margin-top:12px;padding:10px;background:var(--G50);border:1px solid var(--G100);border-radius:8px;font-size:11px;color:var(--G700);font-weight:700">
-              ⭐ Top performer: <b>Ravi Kumar</b> — 46 orders, avg ₹1,040/order
-            </div>
+          <div style="padding:10px 14px" id="staffPerfContainer">
+            <div style="text-align:center;padding:20px;color:var(--ink3);font-size:12px">⏳ Loading from Firebase...</div>
           </div>
         </div>
       </div>
@@ -4251,30 +4251,10 @@ tbody td { color: var(--ink2) !important; }
         <div class="table-wrap">
           <div class="table-head">
             <div class="table-head-title">⚠️ Low Stock Alerts</div>
-            <span style="font-size:10px;background:var(--red-bg);color:var(--red);border-radius:5px;padding:2px 8px;font-weight:800">3 Items</span>
+            <span id="lowStockBadge" style="font-size:10px;background:var(--red-bg);color:var(--red);border-radius:5px;padding:2px 8px;font-weight:800">—</span>
           </div>
-          <div style="padding:10px 14px">
-            <div class="stock-alert-item">
-              <div>
-                <div style="font-weight:800;color:var(--ink);font-size:12.5px">🧀 Mozzarella Cheese</div>
-                <div style="font-size:10px;color:var(--red);font-weight:600">Only 200g left — needs restock</div>
-              </div>
-              <span style="font-size:10px;background:var(--red);color:#fff;border-radius:5px;padding:2px 8px;font-weight:800">CRITICAL</span>
-            </div>
-            <div class="stock-alert-item">
-              <div>
-                <div style="font-weight:800;color:var(--ink);font-size:12.5px">🥩 Chicken Breast</div>
-                <div style="font-size:10px;color:var(--orange);font-weight:600">~1kg remaining (2-3 hrs)</div>
-              </div>
-              <span style="font-size:10px;background:var(--orange);color:#fff;border-radius:5px;padding:2px 8px;font-weight:800">LOW</span>
-            </div>
-            <div class="stock-alert-item">
-              <div>
-                <div style="font-weight:800;color:var(--ink);font-size:12.5px">🥤 Cold Coffee Syrup</div>
-                <div style="font-size:10px;color:var(--amber);font-weight:600">~500ml (5-6 servings)</div>
-              </div>
-              <span style="font-size:10px;background:var(--amber);color:#fff;border-radius:5px;padding:2px 8px;font-weight:800">MEDIUM</span>
-            </div>
+          <div style="padding:10px 14px" id="lowStockContainer">
+            <div style="text-align:center;padding:20px;color:var(--ink3);font-size:12px">⏳ Loading from Firebase...</div>
             <button class="btn btn-outline" style="margin-top:8px;width:100%;font-size:11px;justify-content:center" onclick="showPage('menu',null)">
               <svg style="vertical-align:middle;display:inline-block;" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"/><path d="m7 16.5-4.74-2.85"/><path d="m7 16.5 5-3"/><path d="M7 16.5v5.17"/><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"/><path d="m17 16.5-5-3"/><path d="m17 16.5 4.74-2.85"/><path d="M17 16.5v5.17"/><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"/><path d="M12 8 7.26 5.15"/><path d="m12 8 4.74-2.85"/><path d="M12 13.5V8"/></svg> Inventory Manage Karo
             </button>
@@ -4494,61 +4474,13 @@ tbody td { color: var(--ink2) !important; }
               <div style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700"><div style="width:10px;height:10px;border-radius:3px;background:#059669"></div> New</div>
               <div style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700"><div style="width:10px;height:10px;border-radius:3px;background:#3b82f6"></div> Returning</div>
             </div>
-            <div style="display:flex;gap:6px;align-items:flex-end;height:100px">
-              <!-- Each group: new (green) + returning (blue) side by side -->
-              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-                <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;height:80px">
-                  <div style="flex:1;background:linear-gradient(180deg,#34d399,#059669);border-radius:3px 3px 1px 1px;height:35%"></div>
-                  <div style="flex:1;background:linear-gradient(180deg,#93c5fd,#3b82f6);border-radius:3px 3px 1px 1px;height:55%"></div>
-                </div>
-                <div style="font-size:9px;color:var(--ink3)">Mon</div>
-              </div>
-              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-                <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;height:80px">
-                  <div style="flex:1;background:linear-gradient(180deg,#34d399,#059669);border-radius:3px 3px 1px 1px;height:42%"></div>
-                  <div style="flex:1;background:linear-gradient(180deg,#93c5fd,#3b82f6);border-radius:3px 3px 1px 1px;height:60%"></div>
-                </div>
-                <div style="font-size:9px;color:var(--ink3)">Tue</div>
-              </div>
-              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-                <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;height:80px">
-                  <div style="flex:1;background:linear-gradient(180deg,#34d399,#059669);border-radius:3px 3px 1px 1px;height:30%"></div>
-                  <div style="flex:1;background:linear-gradient(180deg,#93c5fd,#3b82f6);border-radius:3px 3px 1px 1px;height:50%"></div>
-                </div>
-                <div style="font-size:9px;color:var(--ink3)">Wed</div>
-              </div>
-              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-                <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;height:80px">
-                  <div style="flex:1;background:linear-gradient(180deg,#34d399,#059669);border-radius:3px 3px 1px 1px;height:55%"></div>
-                  <div style="flex:1;background:linear-gradient(180deg,#93c5fd,#3b82f6);border-radius:3px 3px 1px 1px;height:72%"></div>
-                </div>
-                <div style="font-size:9px;color:var(--G600);font-weight:800">Thu</div>
-              </div>
-              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-                <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;height:80px">
-                  <div style="flex:1;background:linear-gradient(180deg,#34d399,#059669);border-radius:3px 3px 1px 1px;height:68%"></div>
-                  <div style="flex:1;background:linear-gradient(180deg,#93c5fd,#3b82f6);border-radius:3px 3px 1px 1px;height:90%"></div>
-                </div>
-                <div style="font-size:9px;color:var(--G600);font-weight:800">Fri🔥</div>
-              </div>
-              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-                <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;height:80px">
-                  <div style="flex:1;background:linear-gradient(180deg,#34d399,#059669);border-radius:3px 3px 1px 1px;height:72%"></div>
-                  <div style="flex:1;background:linear-gradient(180deg,#93c5fd,#3b82f6);border-radius:3px 3px 1px 1px;height:95%"></div>
-                </div>
-                <div style="font-size:9px;color:var(--G600);font-weight:800">Sat🔥</div>
-              </div>
-              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-                <div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;height:80px">
-                  <div style="flex:1;background:linear-gradient(180deg,#34d399,#059669);border-radius:3px 3px 1px 1px;height:45%"></div>
-                  <div style="flex:1;background:linear-gradient(180deg,#93c5fd,#3b82f6);border-radius:3px 3px 1px 1px;height:65%"></div>
-                </div>
-                <div style="font-size:9px;color:var(--ink3)">Sun</div>
-              </div>
+            <div style="display:flex;gap:6px;align-items:flex-end;height:100px" id="anCustBars">
+              <!-- Filled dynamically by updateAnCustomerChart() from Firebase order history -->
+              <div style="flex:1;text-align:center;font-size:10px;color:var(--ink3);padding-top:30px">Loading live data…</div>
             </div>
             <div style="margin-top:8px;font-size:11px;color:var(--ink3);display:flex;gap:16px">
-              <span>New this week: <b style="color:var(--G600)">+47</b></span>
-              <span>Returning: <b style="color:var(--blue)">68%</b></span>
+              <span>New this week: <b style="color:var(--G600)" id="anCustNewCount">—</b></span>
+              <span>Returning: <b style="color:var(--blue)" id="anCustRetPct">—</b></span>
             </div>
           </div>
         </div>
@@ -4559,38 +4491,11 @@ tbody td { color: var(--ink2) !important; }
         <!-- Table Utilization Report -->
         <div class="table-wrap">
           <div class="table-head"><div class="table-head-title">🪑 Table Utilization Report</div><span style="font-size:10px;color:var(--ink3);font-weight:600">Avg cover time</span></div>
-          <div style="padding:10px 14px">
-            <div class="tbl-util-row">
-              <div style="width:60px;font-weight:800;color:var(--ink)">Table 1</div>
-              <div class="tbl-util-bar-bg"><div class="tbl-util-bar" style="width:95%;background:linear-gradient(90deg,#34d399,#059669)"></div></div>
-              <div style="width:40px;text-align:right;font-size:11px;font-weight:700;color:var(--G600)">95%</div>
-              <div style="width:35px;font-size:10px;color:var(--ink3)">42m</div>
+          <div style="padding:10px 14px" id="anTableUtilWrap">
+            <div id="anTableUtilRows">
+              <div style="text-align:center;font-size:11px;color:var(--ink3);padding:10px 0">Loading live data…</div>
             </div>
-            <div class="tbl-util-row">
-              <div style="width:60px;font-weight:800;color:var(--ink)">Table 5</div>
-              <div class="tbl-util-bar-bg"><div class="tbl-util-bar" style="width:88%;background:linear-gradient(90deg,#34d399,#059669)"></div></div>
-              <div style="width:40px;text-align:right;font-size:11px;font-weight:700;color:var(--G600)">88%</div>
-              <div style="width:35px;font-size:10px;color:var(--ink3)">38m</div>
-            </div>
-            <div class="tbl-util-row">
-              <div style="width:60px;font-weight:800;color:var(--ink)">Table 3</div>
-              <div class="tbl-util-bar-bg"><div class="tbl-util-bar" style="width:72%;background:linear-gradient(90deg,#93c5fd,#3b82f6)"></div></div>
-              <div style="width:40px;text-align:right;font-size:11px;font-weight:700;color:var(--blue)">72%</div>
-              <div style="width:35px;font-size:10px;color:var(--ink3)">35m</div>
-            </div>
-            <div class="tbl-util-row">
-              <div style="width:60px;font-weight:800;color:var(--ink)">Table 8</div>
-              <div class="tbl-util-bar-bg"><div class="tbl-util-bar" style="width:65%;background:linear-gradient(90deg,#fcd34d,#f59e0b)"></div></div>
-              <div style="width:40px;text-align:right;font-size:11px;font-weight:700;color:var(--amber)">65%</div>
-              <div style="width:35px;font-size:10px;color:var(--ink3)">30m</div>
-            </div>
-            <div class="tbl-util-row">
-              <div style="width:60px;font-weight:800;color:var(--ink)">Table 12</div>
-              <div class="tbl-util-bar-bg"><div class="tbl-util-bar" style="width:42%;background:linear-gradient(90deg,#e5e7eb,#9ca3af)"></div></div>
-              <div style="width:40px;text-align:right;font-size:11px;font-weight:700;color:var(--ink3)">42%</div>
-              <div style="width:35px;font-size:10px;color:var(--ink3)">28m</div>
-            </div>
-            <div style="margin-top:8px;font-size:11px;color:var(--ink3)">Avg cover time: <b style="color:var(--G600)">34.6 min</b> &nbsp;|&nbsp; Peak tables: <b style="color:var(--blue)">T1, T5</b></div>
+            <div style="margin-top:8px;font-size:11px;color:var(--ink3)" id="anTableUtilSummary">Avg cover time: <b style="color:var(--G600)">—</b> &nbsp;|&nbsp; Peak tables: <b style="color:var(--blue)">—</b></div>
           </div>
         </div>
 
@@ -4606,7 +4511,7 @@ tbody td { color: var(--ink2) !important; }
             </button>
           </div>
           <div id="anAiText" style="font-size:12.5px;line-height:1.7;opacity:.9;margin-bottom:14px">
-            🤖 AI revenue prediction analyze kar raha hai... click "Refresh AI" to load.
+            🤖 Calculating from live Firebase data… click "Refresh AI" for AI tips.
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div style="background:rgba(255,255,255,.1);border-radius:10px;padding:10px;text-align:center">
@@ -4823,6 +4728,146 @@ tbody td { color: var(--ink2) !important; }
       }
     }
 
+    // ── UPDATE CUSTOMER ACQUISITION CHART FROM FIREBASE (last 7 days, new vs returning) ──
+    function updateAnCustomerChart() {
+      var history = window._captainOrderHistory || [];
+      var active  = window._captainFirebaseOrders || [];
+      var all = history.concat(active);
+      function ts(o){ return o.timestamp || o.completedAt || o.createdAt || 0; }
+      function custKey(o){ return o.customerPhone || o.phone || ('table-' + (o.tableNumber || o.table || '?')); }
+
+      var wrap = document.getElementById('anCustBars');
+      if (!wrap) return;
+
+      if (!all.length) {
+        wrap.innerHTML = '<div style="flex:1;text-align:center;font-size:10px;color:var(--ink3);padding-top:30px">No order data yet</div>';
+        var nc = document.getElementById('anCustNewCount'); if (nc) nc.textContent = '—';
+        var rp = document.getElementById('anCustRetPct'); if (rp) rp.textContent = '—';
+        return;
+      }
+
+      // First-ever order timestamp per customer (across full history)
+      var firstSeen = {};
+      all.slice().sort(function(a,b){ return ts(a)-ts(b); }).forEach(function(o){
+        var k = custKey(o);
+        if (!(k in firstSeen)) firstSeen[k] = ts(o);
+      });
+
+      var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      var now = new Date();
+      var days = [];
+      for (var i=6; i>=0; i--) {
+        var d = new Date(now); d.setDate(now.getDate()-i); d.setHours(0,0,0,0);
+        days.push({ start: d.getTime(), end: d.getTime()+86400000, name: dayNames[d.getDay()], isToday: i===0 });
+      }
+
+      var newCounts = [], retCounts = [];
+      days.forEach(function(day){
+        var seenToday = {};
+        var nCount=0, rCount=0;
+        all.forEach(function(o){
+          var t = ts(o);
+          if (t < day.start || t >= day.end) return;
+          var k = custKey(o);
+          if (seenToday[k]) return; // 1 customer counted once per day
+          seenToday[k]=true;
+          if (firstSeen[k] === t || firstSeen[k] >= day.start) nCount++;
+          else rCount++;
+        });
+        newCounts.push(nCount); retCounts.push(rCount);
+      });
+
+      var maxVal = Math.max.apply(null, newCounts.concat(retCounts).concat([1]));
+      var totalNew = newCounts.reduce(function(a,b){return a+b;},0);
+      var totalRet = retCounts.reduce(function(a,b){return a+b;},0);
+      var retPct = (totalNew+totalRet)>0 ? Math.round((totalRet/(totalNew+totalRet))*100) : 0;
+
+      var html = '';
+      days.forEach(function(day,i){
+        var nH = Math.max(4, Math.round((newCounts[i]/maxVal)*80));
+        var rH = Math.max(4, Math.round((retCounts[i]/maxVal)*80));
+        var labelStyle = (day.name==='Fri'||day.name==='Sat') ? 'color:var(--G600);font-weight:800' : 'color:var(--ink3)';
+        var labelTxt = day.isToday ? day.name+'🔥' : day.name;
+        html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">'
+          + '<div style="display:flex;gap:2px;align-items:flex-end;width:100%;justify-content:center;height:80px">'
+          + '<div style="flex:1;background:linear-gradient(180deg,#34d399,#059669);border-radius:3px 3px 1px 1px;height:'+nH+'px" title="New: '+newCounts[i]+'"></div>'
+          + '<div style="flex:1;background:linear-gradient(180deg,#93c5fd,#3b82f6);border-radius:3px 3px 1px 1px;height:'+rH+'px" title="Returning: '+retCounts[i]+'"></div>'
+          + '</div><div style="font-size:9px;'+labelStyle+'">'+labelTxt+'</div></div>';
+      });
+      wrap.innerHTML = html;
+
+      var nc = document.getElementById('anCustNewCount'); if (nc) nc.textContent = '+' + totalNew;
+      var rp = document.getElementById('anCustRetPct'); if (rp) rp.textContent = retPct + '%';
+    }
+
+    // ── UPDATE TABLE UTILIZATION REPORT FROM FIREBASE ──
+    function updateAnTableUtil() {
+      var history = window._captainOrderHistory || [];
+      var active  = window._captainFirebaseOrders || [];
+      var all = history.concat(active);
+      var rowsEl = document.getElementById('anTableUtilRows');
+      var summaryEl = document.getElementById('anTableUtilSummary');
+      if (!rowsEl) return;
+
+      if (!all.length) {
+        rowsEl.innerHTML = '<div style="text-align:center;font-size:11px;color:var(--ink3);padding:10px 0">No order data yet</div>';
+        if (summaryEl) summaryEl.innerHTML = 'Avg cover time: <b style="color:var(--G600)">—</b> &nbsp;|&nbsp; Peak tables: <b style="color:var(--blue)">—</b>';
+        return;
+      }
+
+      function _tsNum(v){
+        if (!v) return NaN;
+        if (typeof v === 'number') return v;
+        var n = Number(v);
+        if (!isNaN(n) && n > 1000000000) return n;
+        var d = new Date(v);
+        return isNaN(d.getTime()) ? NaN : d.getTime();
+      }
+
+      // Orders per table
+      var tableMap = {};
+      var coverTimes = [];
+      all.forEach(function(o){
+        var tbl = o.tableNumber || o.table;
+        if (!tbl) return;
+        tableMap[tbl] = (tableMap[tbl] || 0) + 1;
+        var created = _tsNum(o.createdAt || o.timestamp);
+        var done = _tsNum(o.servedAt || o.readyAt || o.completedAt);
+        var diff = done - created;
+        if (!isNaN(diff) && diff > 0 && diff < 7200000) coverTimes.push(diff);
+      });
+
+      var entries = Object.entries(tableMap).sort(function(a,b){ return b[1]-a[1]; }).slice(0,5);
+      if (!entries.length) {
+        rowsEl.innerHTML = '<div style="text-align:center;font-size:11px;color:var(--ink3);padding:10px 0">No table data yet</div>';
+        if (summaryEl) summaryEl.innerHTML = 'Avg cover time: <b style="color:var(--G600)">—</b> &nbsp;|&nbsp; Peak tables: <b style="color:var(--blue)">—</b>';
+        return;
+      }
+      var maxCount = entries[0][1];
+
+      var html = '';
+      entries.forEach(function(entry, i){
+        var tbl = entry[0], count = entry[1];
+        var pct = Math.round((count/maxCount)*100);
+        var grad, color;
+        if (pct >= 80) { grad='linear-gradient(90deg,#34d399,#059669)'; color='var(--G600)'; }
+        else if (pct >= 50) { grad='linear-gradient(90deg,#93c5fd,#3b82f6)'; color='var(--blue)'; }
+        else if (pct >= 30) { grad='linear-gradient(90deg,#fcd34d,#f59e0b)'; color='var(--amber)'; }
+        else { grad='linear-gradient(90deg,#e5e7eb,#9ca3af)'; color='var(--ink3)'; }
+        html += '<div class="tbl-util-row">'
+          + '<div style="width:60px;font-weight:800;color:var(--ink)">Table '+tbl+'</div>'
+          + '<div class="tbl-util-bar-bg"><div class="tbl-util-bar" style="width:'+pct+'%;background:'+grad+'"></div></div>'
+          + '<div style="width:40px;text-align:right;font-size:11px;font-weight:700;color:'+color+'">'+pct+'%</div>'
+          + '<div style="width:35px;font-size:10px;color:var(--ink3)">'+count+' ord</div>'
+          + '</div>';
+      });
+      rowsEl.innerHTML = html;
+
+      var avgCover = coverTimes.length ? Math.round((coverTimes.reduce(function(a,b){return a+b;},0)/coverTimes.length)/60000) : 0;
+      var peakTables = entries.slice(0,2).map(function(e){ return 'T'+e[0]; }).join(', ');
+      if (summaryEl) summaryEl.innerHTML = 'Avg cover time: <b style="color:var(--G600)">'+(avgCover>0?avgCover+' min':'—')+'</b> &nbsp;|&nbsp; Peak tables: <b style="color:var(--blue)">'+peakTables+'</b>';
+    }
+
     function switchAnTab(tab, btn) {
       _anCurrentTab = tab;
       document.querySelectorAll('.an-tab').forEach(function(b){ b.classList.remove('active'); });
@@ -4838,6 +4883,10 @@ tbody td { color: var(--ink2) !important; }
       } else {
         d = _anData[tab] || _anData.today;
       }
+      updateAnCustomerChart();
+      updateAnTableUtil();
+      updateAnAiPredictionNumbers();
+      switchRevChart(document.getElementById('anChartMonth')?.classList.contains('btn-green') ? 'month' : 'week');
 
       var set = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
       set('anRevVal', d.rev); set('anRevChange', d.revChg);
@@ -4892,20 +4941,93 @@ tbody td { color: var(--ink2) !important; }
       showToast('📊 ' + from + ' se ' + to + ' — Firebase data loaded!');
     }
 
+    function _anOrderRevenue(o) {
+      return (o.items || []).reduce(function(s,i){ return s + ((i.price||0)*(i.qty||1)); }, 0) || (o.total || o.grandTotal || 0);
+    }
+
     function switchRevChart(type, btn) {
       document.getElementById('anChartWeek')?.classList[type==='week'?'add':'remove']('btn-green');
       document.getElementById('anChartWeek')?.classList[type==='week'?'remove':'add']('btn-outline');
       document.getElementById('anChartMonth')?.classList[type==='month'?'add':'remove']('btn-green');
       document.getElementById('anChartMonth')?.classList[type==='month'?'remove':'add']('btn-outline');
+
+      var history = window._captainOrderHistory || [];
+      var active  = window._captainFirebaseOrders || [];
+      var all = history.concat(active);
+      function ts(o){ return o.timestamp || o.completedAt || o.createdAt || 0; }
+
       var labels = document.getElementById('anChartLabels');
-      if (type==='week') {
-        if (labels) labels.innerHTML = '<span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span style="color:var(--G600);font-weight:800">Fri</span><span style="color:var(--G600);font-weight:800">Sat</span><span>Sun</span>';
-        document.getElementById('anLinePath')?.setAttribute('d','M0,80 L73,65 L147,48 L220,55 L293,28 L367,18 L440,32 L513,12');
-        document.getElementById('anAreaPath')?.setAttribute('d','M0,80 L73,65 L147,48 L220,55 L293,28 L367,18 L440,32 L513,12 L513,100 L0,100Z');
+      var values = [];
+      var labelHtml = '';
+
+      if (type === 'week') {
+        var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+        var now = new Date();
+        for (var i=6; i>=0; i--) {
+          var d = new Date(now); d.setDate(now.getDate()-i); d.setHours(0,0,0,0);
+          var start = d.getTime(), end = start + 86400000;
+          var rev = all.filter(function(o){ var t=ts(o); return t>=start && t<end; })
+                        .reduce(function(s,o){ return s + _anOrderRevenue(o); }, 0);
+          values.push(rev);
+          var dn = dayNames[d.getDay()];
+          var hot = (dn==='Fri'||dn==='Sat') ? 'color:var(--G600);font-weight:800' : '';
+          labelHtml += '<span style="'+hot+'">'+dn+(i===0?' (Today)':'')+'</span>';
+        }
       } else {
-        if (labels) labels.innerHTML = '<span>W1</span><span>W2</span><span>W3</span><span style="color:var(--G600);font-weight:800">W4</span>';
-        document.getElementById('anLinePath')?.setAttribute('d','M0,70 L170,50 L340,35 L510,15');
-        document.getElementById('anAreaPath')?.setAttribute('d','M0,70 L170,50 L340,35 L510,15 L510,100 L0,100Z');
+        var now2 = new Date();
+        var monthStart = new Date(now2.getFullYear(), now2.getMonth(), 1).getTime();
+        var monthEnd = new Date(now2.getFullYear(), now2.getMonth()+1, 1).getTime();
+        var weekMs = 7*24*60*60*1000;
+        for (var w=0; w<4; w++) {
+          var ws = monthStart + w*weekMs;
+          var we = Math.min(ws + weekMs, monthEnd);
+          var rev2 = all.filter(function(o){ var t=ts(o); return t>=ws && t<we; })
+                         .reduce(function(s,o){ return s + _anOrderRevenue(o); }, 0);
+          values.push(rev2);
+          var isCur = (Date.now() >= ws && Date.now() < we);
+          labelHtml += '<span style="'+(isCur?'color:var(--G600);font-weight:800':'')+'">W'+(w+1)+'</span>';
+        }
+      }
+      if (labels) labels.innerHTML = labelHtml;
+
+      // Build SVG path: x spread 0..513, y range 15 (high) .. 85 (low)
+      var maxV = Math.max.apply(null, values.concat([0]));
+      var n = values.length;
+      var pts = values.map(function(v,i){
+        var x = (513 / (n-1)) * i;
+        var y = maxV > 0 ? (85 - (v/maxV)*70) : 80;
+        return [Math.round(x), Math.round(y)];
+      });
+      var lineD = 'M' + pts.map(function(p){ return p[0]+','+p[1]; }).join(' L');
+      var areaD = lineD + ' L513,100 L0,100Z';
+      document.getElementById('anLinePath')?.setAttribute('d', lineD);
+      document.getElementById('anAreaPath')?.setAttribute('d', areaD);
+    }
+
+    // ── Compute prediction numbers from real Firebase data (no AI call needed) ──
+    function updateAnAiPredictionNumbers() {
+      var history = window._captainOrderHistory || [];
+      var now = new Date();
+      var weekStart = new Date(now); weekStart.setDate(now.getDate() - 7); weekStart.setHours(0,0,0,0);
+      var weekOrders = history.filter(function(o){ var ts=o.timestamp||o.completedAt||o.createdAt||0; return ts >= weekStart.getTime(); });
+      var weekRev = weekOrders.reduce(function(s,o){ return s+_anOrderRevenue(o); },0);
+
+      var dayRevMap = {0:0,1:0,2:0,3:0,4:0,5:0,6:0};
+      weekOrders.forEach(function(o){ var d=new Date(o.timestamp||o.completedAt||o.createdAt||0).getDay(); dayRevMap[d]+=_anOrderRevenue(o); });
+      var dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      var sortedDays = Object.entries(dayRevMap).sort(function(a,b){return b[1]-a[1];});
+      var bestDay = weekRev > 0 ? dayNames[sortedDays[0][0]] : '—';
+
+      var predEl = document.getElementById('anAiRevPred');
+      var bestDayEl = document.getElementById('anAiBestDay');
+      if (predEl) predEl.textContent = weekRev > 0 ? '₹' + Math.round(weekRev*1.1).toLocaleString('en-IN') : '₹0';
+      if (bestDayEl) bestDayEl.textContent = bestDay;
+
+      var el = document.getElementById('anAiText');
+      if (el && el.textContent.indexOf('Calculating') !== -1) {
+        el.textContent = weekRev > 0
+          ? ('📊 Pichle 7 din ka revenue ₹' + weekRev.toLocaleString('en-IN') + ' tha (' + weekOrders.length + ' orders). Click "Refresh AI" for AI-based tips & next week prediction.')
+          : '📊 Abhi tak koi order data nahi mila. Orders aane ke baad yahan real prediction dikhega.';
       }
     }
 
@@ -6386,6 +6508,82 @@ tbody td { color: var(--ink2) !important; }
         </div>
       </div>
 
+      <!-- ═══════════════════════════════════════════════════════
+           🎨 THEME SELECTOR — Settings mein
+      ══════════════════════════════════════════════════════════ -->
+      <div style="margin-top:20px;background:linear-gradient(135deg,#fdf4ff,#faf5ff,#eff6ff);border:2px solid rgba(109,40,217,.18);border-radius:16px;padding:20px;position:relative;overflow:hidden">
+        <div style="position:absolute;top:-40px;right:-40px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(109,40,217,.12),transparent 70%);pointer-events:none"></div>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <span style="font-size:22px">🎨</span>
+          <div style="font-size:15px;font-weight:900;color:#6d28d9;letter-spacing:-.3px">Theme Style</div>
+          <span style="margin-left:auto;font-size:10px;font-weight:800;padding:4px 12px;border-radius:999px;background:rgba(109,40,217,.1);color:#6d28d9;border:1px solid rgba(109,40,217,.2)">APPEARANCE</span>
+        </div>
+        <div style="font-size:12px;color:var(--ink3);font-weight:600;margin-bottom:16px">Dashboard ka color theme choose karo — instantly apply hoga!</div>
+
+        <!-- Theme Cards Grid -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px" id="settingsThemeGrid">
+
+          <!-- Dark Forest -->
+          <div id="stCard-dark-forest" onclick="applyTheme('dark-forest')" style="border:2px solid #e5e7eb;border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;background:#fff;transition:all .22s cubic-bezier(.34,1.56,.64,1);position:relative;overflow:hidden">
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#047857,#10b981);margin:0 auto 8px;box-shadow:0 4px 12px rgba(5,150,105,.35)"></div>
+            <div style="font-size:11px;font-weight:800;color:#065f46">Dark Forest</div>
+            <div style="font-size:10px;color:#9ca3af;margin-top:2px">🌿 Green</div>
+            <div id="stBadge-dark-forest" style="display:none;position:absolute;top:6px;right:6px;background:#059669;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:999px">✓ ON</div>
+          </div>
+
+          <!-- Midnight Ruby -->
+          <div id="stCard-midnight-ruby" onclick="applyTheme('midnight-ruby')" style="border:2px solid #e5e7eb;border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;background:#fff;transition:all .22s cubic-bezier(.34,1.56,.64,1);position:relative;overflow:hidden">
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#991b1b,#ef4444);margin:0 auto 8px;box-shadow:0 4px 12px rgba(185,28,28,.35)"></div>
+            <div style="font-size:11px;font-weight:800;color:#991b1b">Midnight Ruby</div>
+            <div style="font-size:10px;color:#9ca3af;margin-top:2px">🔴 Red</div>
+            <div id="stBadge-midnight-ruby" style="display:none;position:absolute;top:6px;right:6px;background:#dc2626;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:999px">✓ ON</div>
+          </div>
+
+          <!-- Ocean Deep -->
+          <div id="stCard-ocean-deep" onclick="applyTheme('ocean-deep')" style="border:2px solid #e5e7eb;border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;background:#fff;transition:all .22s cubic-bezier(.34,1.56,.64,1);position:relative;overflow:hidden">
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#1d4ed8,#3b82f6);margin:0 auto 8px;box-shadow:0 4px 12px rgba(29,78,216,.35)"></div>
+            <div style="font-size:11px;font-weight:800;color:#1d4ed8">Ocean Deep</div>
+            <div style="font-size:10px;color:#9ca3af;margin-top:2px">🔵 Blue</div>
+            <div id="stBadge-ocean-deep" style="display:none;position:absolute;top:6px;right:6px;background:#1d4ed8;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:999px">✓ ON</div>
+          </div>
+
+          <!-- Golden Dusk -->
+          <div id="stCard-golden-dusk" onclick="applyTheme('golden-dusk')" style="border:2px solid #e5e7eb;border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;background:#fff;transition:all .22s cubic-bezier(.34,1.56,.64,1);position:relative;overflow:hidden">
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#b45309,#f59e0b);margin:0 auto 8px;box-shadow:0 4px 12px rgba(180,83,9,.35)"></div>
+            <div style="font-size:11px;font-weight:800;color:#b45309">Golden Dusk</div>
+            <div style="font-size:10px;color:#9ca3af;margin-top:2px">🟡 Amber</div>
+            <div id="stBadge-golden-dusk" style="display:none;position:absolute;top:6px;right:6px;background:#d97706;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:999px">✓ ON</div>
+          </div>
+
+          <!-- Cosmic Purple -->
+          <div id="stCard-cosmic-purple" onclick="applyTheme('cosmic-purple')" style="border:2px solid #e5e7eb;border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;background:#fff;transition:all .22s cubic-bezier(.34,1.56,.64,1);position:relative;overflow:hidden">
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#6d28d9,#8b5cf6);margin:0 auto 8px;box-shadow:0 4px 12px rgba(109,40,217,.35)"></div>
+            <div style="font-size:11px;font-weight:800;color:#6d28d9">Cosmic Purple</div>
+            <div style="font-size:10px;color:#9ca3af;margin-top:2px">🟣 Purple</div>
+            <div id="stBadge-cosmic-purple" style="display:none;position:absolute;top:6px;right:6px;background:#6d28d9;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:999px">✓ ON</div>
+          </div>
+
+          <!-- SiMi Grocery -->
+          <div id="stCard-simi-grocery" onclick="applyTheme('simi-grocery')" style="border:2px solid #e5e7eb;border-radius:12px;padding:12px 8px;text-align:center;cursor:pointer;background:#fff;transition:all .22s cubic-bezier(.34,1.56,.64,1);position:relative;overflow:hidden">
+            <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#2e7d32,#66bb6a);margin:0 auto 8px;box-shadow:0 4px 12px rgba(46,125,50,.35)"></div>
+            <div style="font-size:11px;font-weight:800;color:#2e7d32">SiMi Grocery</div>
+            <div style="font-size:10px;color:#9ca3af;margin-top:2px">🌿 Light</div>
+            <div id="stBadge-simi-grocery" style="display:none;position:absolute;top:6px;right:6px;background:#2e7d32;color:#fff;font-size:9px;font-weight:800;padding:2px 6px;border-radius:999px">✓ ON</div>
+          </div>
+
+        </div>
+
+        <!-- Active Theme Status -->
+        <div id="settingsThemeStatus" style="display:flex;align-items:center;gap:10px;background:rgba(109,40,217,.06);border:1.5px solid rgba(109,40,217,.15);border-radius:10px;padding:10px 14px">
+          <span style="font-size:20px" id="settingsThemeEmoji">🌿</span>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:800;color:#5b21b6" id="settingsThemeActiveTxt">Dark Forest — Active hai</div>
+            <div style="font-size:10.5px;color:#7c3aed;font-weight:600">Theme change karo — live dikhai dega!</div>
+          </div>
+        </div>
+      </div>
+
       <div style="margin-top:16px;display:flex;gap:10px;align-items:center">
         <button class="btn btn-green" onclick="saveAllSettings()"><svg style="vertical-align:middle;display:inline-block;" xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save Settings</button>
         <span id="settingsSavedMsg" style="font-size:12px;color:var(--G600);font-weight:700;opacity:0;transition:.4s">✅ Settings saved!</span>
@@ -6398,7 +6596,8 @@ tbody td { color: var(--ink2) !important; }
 <script>
 // ===== CLOCK =====
 function updateClock(){
-  document.getElementById('clock').textContent=new Date().toLocaleTimeString();
+  const el = document.getElementById('clock');
+  if (el) el.textContent=new Date().toLocaleTimeString();
 }
 setInterval(updateClock,1000); updateClock();
 
@@ -7207,8 +7406,10 @@ function addToCart(name,fullPrice,halfPrice,id){
   const portion=selectedPortion[id]||'Full';
   const price=portion==='Half'?halfPrice:fullPrice;
   const key=name+'|'+spice+'|'+portion;
+  const dish=(typeof dishes!=='undefined'?dishes:[]).find(d=>d.id===id) || (typeof rtsDishesList!=='undefined'?rtsDishesList:[]).find(d=>d.id===id);
+  const category=dish?dish.category:'other';
   const ex=cart.find(i=>i.key===key);
-  if(ex) ex.qty++; else cart.push({key,name,price,qty:1,spice,portion});
+  if(ex) ex.qty++; else cart.push({key,name,price,qty:1,spice,portion,category});
   renderCart(); showToast('✅ '+name+' ('+portion+', '+spice+') added!');
 }
 function renderCart(){
@@ -8637,28 +8838,60 @@ function applyTheme(theme) {
   document.body.classList.add('theme-' + theme);
   currentTheme = theme;
   localStorage.setItem('captainTheme', theme);
-  // Update active pill
+  // Update active pill (floating panel)
   themes.forEach(t => {
     const el = document.getElementById('tp-' + t);
     if (el) el.classList.toggle('active', t === theme);
   });
+  // Update Settings page theme cards
+  const themeEmojis = {
+    'dark-forest':    { emoji: '🌿', label: 'Dark Forest' },
+    'midnight-ruby':  { emoji: '🔴', label: 'Midnight Ruby' },
+    'ocean-deep':     { emoji: '🔵', label: 'Ocean Deep' },
+    'golden-dusk':    { emoji: '🟡', label: 'Golden Dusk' },
+    'cosmic-purple':  { emoji: '🟣', label: 'Cosmic Purple' },
+    'simi-grocery':   { emoji: '🌱', label: 'SiMi Grocery' }
+  };
+  themes.forEach(t => {
+    const card  = document.getElementById('stCard-' + t);
+    const badge = document.getElementById('stBadge-' + t);
+    if (card) {
+      card.style.borderColor = (t === theme) ? '#6d28d9' : '#e5e7eb';
+      card.style.background  = (t === theme) ? '#faf5ff' : '#fff';
+      card.style.transform   = (t === theme) ? 'scale(1.04)' : 'scale(1)';
+      card.style.boxShadow   = (t === theme) ? '0 4px 20px rgba(109,40,217,.18)' : 'none';
+    }
+    if (badge) badge.style.display = (t === theme) ? 'block' : 'none';
+  });
+  // Update status bar in Settings
+  const info = themeEmojis[theme] || { emoji: '🎨', label: theme };
+  const emojiEl = document.getElementById('settingsThemeEmoji');
+  const txtEl   = document.getElementById('settingsThemeActiveTxt');
+  if (emojiEl) emojiEl.textContent = info.emoji;
+  if (txtEl)   txtEl.textContent   = info.label + ' — Active hai';
   showToast('🎨 Theme: ' + theme.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()));
 }
 
 function toggleThemePanel() {
-  const p = document.getElementById('themePanel');
-  if (p.style.display === 'none') {
-    p.style.display = 'flex';
+  const switcher = document.getElementById('themeSwitcher');
+  const btn = document.getElementById('topbarThemeBtn');
+  const isOpen = switcher.style.display === 'block';
+  if (isOpen) {
+    switcher.style.display = 'none';
   } else {
-    p.style.display = 'none';
+    const rect = btn.getBoundingClientRect();
+    switcher.style.display = 'block';
+    switcher.style.top  = (rect.bottom + 8) + 'px';
+    switcher.style.left = Math.max(8, rect.left - 120 + rect.width / 2) + 'px';
   }
 }
 
 // Close theme panel on outside click
 document.addEventListener('click', (e) => {
-  if (!document.getElementById('themeSwitcher').contains(e.target)) {
-    const p = document.getElementById('themePanel');
-    if (p) p.style.display = 'none';
+  const switcher = document.getElementById('themeSwitcher');
+  const btn = document.getElementById('topbarThemeBtn');
+  if (switcher && btn && !switcher.contains(e.target) && !btn.contains(e.target)) {
+    switcher.style.display = 'none';
   }
 });
 
@@ -12412,7 +12645,7 @@ floatCSS.textContent = `
   height: 56px;
   border-radius: 50%;
   cursor: pointer;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   animation: cornerOrbFloat 3.5s ease-in-out infinite;
@@ -12730,7 +12963,7 @@ document.head.appendChild(floatCSS);
   width: 44px;
   height: 44px;
   cursor: pointer;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   animation: ariaFabFloat 4s ease-in-out infinite;
@@ -14230,6 +14463,9 @@ window.addEventListener('load', async function() {
     startCaptainOrderListener();
     startCaptainHistoryListener();
 
+    // ── Low Stock Alerts listener start karo ──
+    setTimeout(renderLowStockAlerts, 1500);
+
     // ── Settings load karo Firebase se ──
     setTimeout(_loadSettingsFromFirebase, 800);
 
@@ -14517,36 +14753,83 @@ function updateDashboardFromFirebase() {
     const orderEl = document.getElementById('dashOrderCount');
     if (orderEl) orderEl.textContent = totalOrders;
 
-    // ── 2. LIVE REVENUE (today ke served + paid orders se) ──
-    // Active orders ka estimated revenue
+    // ── 2. LIVE REVENUE (today + all-time) ──
+    // Helper: order se amount safely nikalo
+    function _getOrderAmt(o) {
+      // Try direct fields first
+      const direct = parseFloat(o.totalAmount || o.grandTotal || o.total || o.amount || 0);
+      if (direct > 0) return direct;
+      // Fallback: items se calculate
+      const fromItems = (o.items || []).reduce((s,i) => {
+        const p = parseFloat(i.price || i.rate || 0);
+        const q = parseFloat(i.qty || i.quantity || 1);
+        return s + (isNaN(p)||isNaN(q) ? 0 : p*q);
+      }, 0);
+      return isNaN(fromItems) ? 0 : fromItems;
+    }
+
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
     let liveRevenue = 0;
-    orders.forEach(o => {
-      const amt = (o.items || []).reduce((s,i) => s + ((i.price||0)*(i.qty||1)), 0);
-      liveRevenue += amt;
-    });
-    // orderHistory se bhi today ka revenue add karo
+    orders.forEach(o => { liveRevenue += _getOrderAmt(o); });
+
+    // orderHistory se today ka revenue
     const history = window._captainOrderHistory || [];
     let historyRevenue = 0;
+    let allTimeRevenue = 0;
     history.forEach(o => {
+      const amt = _getOrderAmt(o);
+      allTimeRevenue += amt;
       const ts = o.timestamp || o.completedAt || o.createdAt || 0;
-      if (new Date(ts) >= todayStart) {
-        const amt = (o.items || []).reduce((s,i) => s + ((i.price||0)*(i.qty||1)), 0);
+      const tsNum = typeof ts === 'string' ? new Date(ts).getTime() : Number(ts);
+      if (!isNaN(tsNum) && tsNum >= todayStart.getTime()) {
         historyRevenue += amt;
       }
     });
+
+    // localStorage se bhi all-time revenue (captain_orders)
+    try {
+      const storedOrders = JSON.parse(localStorage.getItem('captain_orders') || '[]');
+      storedOrders.forEach(o => {
+        allTimeRevenue += _getOrderAmt(o);
+        // today ka bhi check
+        const ts = o.timestamp || o.completedAt || o.createdAt || 0;
+        const tsNum = typeof ts === 'string' ? new Date(ts).getTime() : Number(ts);
+        if (!isNaN(tsNum) && tsNum >= todayStart.getTime()) {
+          historyRevenue += _getOrderAmt(o);
+        }
+      });
+    } catch(e) {}
+
     const totalRevenue = liveRevenue + historyRevenue;
     const revenueEl = document.getElementById('dashRevenueLive');
-    if (revenueEl && totalRevenue > 0) {
+    const revenueChgEl = document.getElementById('dashRevenueChg');
+    if (revenueEl) {
       revenueEl.textContent = '₹' + totalRevenue.toLocaleString('en-IN');
       // Target bar update
       const target = 60000;
       const pct = Math.min(100, Math.round((totalRevenue / target) * 100));
       const bar = revenueEl.closest('.stat-card')?.querySelector('.target-bar-fill');
       if (bar) bar.style.width = pct + '%';
-      const barTxt = revenueEl.closest('.stat-card')?.querySelector('[style*="80% of daily"]');
+      const barTxt = revenueEl.closest('.stat-card')?.querySelector('[style*="of daily target"]');
       if (barTxt) barTxt.textContent = pct + '% of daily target reached';
+      // All-time revenue sub-text
+      const allTimeTotal = allTimeRevenue + liveRevenue;
+      if (revenueChgEl) revenueChgEl.textContent = totalRevenue > 0
+        ? '💰 Ab tak total: ₹' + allTimeTotal.toLocaleString('en-IN')
+        : 'No revenue yet today';
     }
+
+    // ── Orders change text ──
+    const orderChgEl = document.getElementById('dashOrderChg');
+    if (orderChgEl) orderChgEl.textContent = totalOrders > 0 ? totalOrders + ' active orders' : 'No active orders';
+    // Order type breakdown (dine/delivery/takeaway)
+    const allTypeOrders = orders.concat(window._captainOrderHistory || []);
+    const dineCount = allTypeOrders.filter(o => (o.orderType||o.type||'').toLowerCase().includes('dine') || (o.orderType||o.type||'') === '').length;
+    const delCount  = allTypeOrders.filter(o => (o.orderType||o.type||'').toLowerCase().includes('del') || (o.orderType||o.type||'').toLowerCase().includes('delivery')).length;
+    const takeCount = allTypeOrders.filter(o => (o.orderType||o.type||'').toLowerCase().includes('take') || (o.orderType||o.type||'').toLowerCase().includes('pickup')).length;
+    const dineTag = document.getElementById('dashDineTag'); if (dineTag) dineTag.textContent = '🍽 Dine ' + dineCount;
+    const delTag  = document.getElementById('dashDelTag');  if (delTag)  delTag.textContent  = '🛵 Del ' + delCount;
+    const takeTag = document.getElementById('dashTakeTag'); if (takeTag) takeTag.textContent = '🥡 Take ' + takeCount;
 
     // ── 3. TABLES OCCUPIED ──
     const occupiedTables = new Set();
@@ -14557,7 +14840,9 @@ function updateDashboardFromFirebase() {
     const totalTables = (window.tableData || []).length || 15;
     const occupied = occupiedTables.size;
     const tableEl = document.getElementById('dashTableCount');
+    const tableChgEl = document.getElementById('dashTableChg');
     if (tableEl) tableEl.textContent = occupied + '/' + totalTables;
+    if (tableChgEl) tableChgEl.textContent = Math.round((occupied/totalTables)*100) + '% occupancy';
     // Table dots update
     const dotsEl = document.getElementById('dashTableDots');
     if (dotsEl && window.tableData) {
@@ -14596,8 +14881,388 @@ function updateDashboardFromFirebase() {
       }).join('');
     }
 
+    // ── 5. AVG KITCHEN TIME (order place se serve/ready hone tak) ──
+    function _tsNum(v) {
+      if (!v) return NaN;
+      if (typeof v === 'number') return v;
+      const n = Number(v);
+      if (!isNaN(n) && n > 1000000000) return n; // Unix ms
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? NaN : d.getTime();
+    }
+    const allOrdersForTime = orders.concat(window._captainOrderHistory || []);
+    // servedAt OR readyAt OR completedAt — jo bhi mile
+    const kitchenOrders = allOrdersForTime.filter(o => {
+      const created = _tsNum(o.createdAt || o.timestamp);
+      const done = _tsNum(o.servedAt || o.readyAt || o.completedAt);
+      const diff = done - created;
+      return !isNaN(diff) && diff > 0 && diff < 7200000; // max 2 hours
+    });
+    const deliveryEl = document.getElementById('dashAvgDelivery');
+    const deliveryChgEl = document.getElementById('dashAvgDeliveryChg');
+    const deliveryDetailEl = document.getElementById('dashAvgDeliveryDetail');
+    // Update label to Kitchen Time
+    const deliveryLabelEl = deliveryEl?.closest('.stat-card')?.querySelector('.stat-label');
+    if (deliveryLabelEl && deliveryLabelEl.textContent.toLowerCase().includes('delivery')) {
+      deliveryLabelEl.textContent = 'AVG KITCHEN TIME';
+    }
+    const deliveryIconEl = deliveryEl?.closest('.stat-card')?.querySelector('.stat-icon');
+    if (deliveryIconEl && deliveryIconEl.textContent.trim() !== '🍳') {
+      try { deliveryIconEl.textContent = '🍳'; } catch(e) {}
+    }
+    if (kitchenOrders.length > 0) {
+      const avgMs = kitchenOrders.reduce((s,o) => {
+        const created = _tsNum(o.createdAt || o.timestamp);
+        const done = _tsNum(o.servedAt || o.readyAt || o.completedAt);
+        return s + (done - created);
+      }, 0) / kitchenOrders.length;
+      const avgMin = Math.round(avgMs / 60000);
+      if (deliveryEl) deliveryEl.textContent = avgMin + 'm';
+      if (deliveryChgEl) deliveryChgEl.textContent = kitchenOrders.length + ' orders ka average';
+      if (deliveryDetailEl) deliveryDetailEl.textContent = kitchenOrders.length + ' active orders';
+    } else if (orders.length > 0) {
+      // Fallback: active orders kitni der se kitchen mein hain
+      const now = Date.now();
+      const activeTimes = orders
+        .map(o => { const t = _tsNum(o.createdAt || o.timestamp); return isNaN(t) ? NaN : Math.round((now - t) / 60000); })
+        .filter(m => !isNaN(m) && m >= 0 && m < 120);
+      if (activeTimes.length > 0) {
+        const avgActive = Math.round(activeTimes.reduce((a,b)=>a+b,0) / activeTimes.length);
+        if (deliveryEl) deliveryEl.textContent = avgActive + 'm';
+        if (deliveryChgEl) deliveryChgEl.textContent = 'Kitchen mein avg wait time';
+        if (deliveryDetailEl) deliveryDetailEl.textContent = activeTimes.length + ' active orders';
+      } else {
+        if (deliveryEl) deliveryEl.textContent = '—';
+        if (deliveryChgEl) deliveryChgEl.textContent = 'Active orders avg time';
+        if (deliveryDetailEl) deliveryDetailEl.textContent = orders.length + ' active orders';
+      }
+    } else {
+      if (deliveryEl) deliveryEl.textContent = '—';
+      if (deliveryChgEl) deliveryChgEl.textContent = 'No orders yet today';
+    }
+
+    // ── 6. AVG RATING (orders mein rating field se) ──
+    const allForRating = orders.concat(window._captainOrderHistory || []);
+    const ratedOrders = allForRating.filter(o => o.rating && parseFloat(o.rating) > 0);
+    const ratingEl = document.getElementById('dashAvgRating');
+    const ratingChgEl = document.getElementById('dashAvgRatingChg');
+    if (ratedOrders.length > 0) {
+      const avgRating = (ratedOrders.reduce((s,o) => s + parseFloat(o.rating), 0) / ratedOrders.length).toFixed(1);
+      if (ratingEl) ratingEl.textContent = '⭐ ' + avgRating;
+      if (ratingChgEl) ratingChgEl.textContent = ratedOrders.length + ' ratings received';
+    } else {
+      if (ratingEl) ratingEl.textContent = '—';
+      if (ratingChgEl) ratingChgEl.textContent = 'No ratings yet';
+    }
+
+    // ── 7. TOTAL CUSTOMERS (unique customerName/phone from today's orders) ──
+    const todayStartTs = new Date(); todayStartTs.setHours(0,0,0,0);
+    const todayAllOrders = orders.concat((window._captainOrderHistory || []).filter(o => {
+      const ts = o.timestamp || o.completedAt || o.createdAt || 0;
+      return new Date(ts) >= todayStartTs;
+    }));
+    const uniqueCustomers = new Set();
+    todayAllOrders.forEach(o => {
+      const key = o.customerPhone || o.phone || o.customerName || o.tableNumber;
+      if (key) uniqueCustomers.add(String(key));
+    });
+    const custEl = document.getElementById('dashTotalCustomers');
+    const custChgEl = document.getElementById('dashTotalCustomersChg');
+    if (custEl) custEl.textContent = uniqueCustomers.size || todayAllOrders.length || '—';
+    if (custChgEl) custChgEl.textContent = todayAllOrders.length + ' orders today';
+
+    // ── 8. ITEMS SOLD TODAY ──
+    let totalItemsSold = 0;
+    todayAllOrders.forEach(o => {
+      (o.items || []).forEach(i => { totalItemsSold += (i.qty || 1); });
+    });
+    const itemsEl = document.getElementById('dashItemsSold');
+    const itemsChgEl = document.getElementById('dashItemsSoldChg');
+    if (itemsEl) itemsEl.textContent = totalItemsSold > 0 ? totalItemsSold : '—';
+    if (itemsChgEl) itemsChgEl.textContent = todayAllOrders.length > 0 ? 'From ' + todayAllOrders.length + ' orders' : 'No orders yet';
+
+    // ── 9. AVG ORDER VALUE ──
+    const allRevOrders = todayAllOrders.filter(o => (o.items||[]).length > 0);
+    const avgValEl = document.getElementById('dashAvgOrderVal');
+    const avgValChgEl = document.getElementById('dashAvgOrderValChg');
+    if (allRevOrders.length > 0) {
+      const totalAmt = allRevOrders.reduce((s,o) => s + (o.items||[]).reduce((a,i)=>a+((i.price||0)*(i.qty||1)),0), 0);
+      const avg = Math.round(totalAmt / allRevOrders.length);
+      if (avgValEl) avgValEl.textContent = avg > 0 ? '₹' + avg.toLocaleString('en-IN') : '—';
+      if (avgValChgEl) avgValChgEl.textContent = 'Per order average';
+    } else {
+      if (avgValEl) avgValEl.textContent = '—';
+      if (avgValChgEl) avgValChgEl.textContent = 'No orders yet';
+    }
+
+    // ── 10. CANCELLED ORDERS ──
+    const cancelledOrders = todayAllOrders.filter(o => o.status === 'cancelled');
+    const cancelEl = document.getElementById('dashCancelCount');
+    const cancelChgEl = document.getElementById('dashCancelChg');
+    if (cancelEl) cancelEl.textContent = cancelledOrders.length > 0 ? cancelledOrders.length : '0';
+    if (cancelChgEl) cancelChgEl.textContent = cancelledOrders.length > 0
+      ? cancelledOrders.length + ' cancelled today'
+      : '✅ No cancellations today';
+
+    // ── 11. BEST SELLERS ──
+    renderBestSellers();
+
+    // ── 12. STAFF PERFORMANCE ──
+    renderStaffPerformance();
+
+    // ── 13. LOW STOCK ALERTS ──
+    renderLowStockAlerts();
+
   } catch(e) {
     console.warn('[Dashboard] Update error:', e);
+  }
+}
+
+// ── BEST SELLERS (Firebase orders + orderHistory se real item counts) ──
+function renderBestSellers() {
+  const el = document.getElementById('bestSellersContainer');
+  if (!el) return;
+
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const allOrders = (_captainFirebaseOrders || []).concat((_captainOrderHistory || []).filter(o => {
+    const ts = o.timestamp || o.completedAt || o.createdAt || 0;
+    return new Date(typeof ts === 'string' ? ts : Number(ts)) >= todayStart;
+  }));
+
+  // Item frequency count karo
+  const itemCounts = {};
+  allOrders.forEach(o => {
+    (o.items || []).forEach(i => {
+      const name = i.name || i.item || i.itemName || '';
+      if (!name) return;
+      itemCounts[name] = (itemCounts[name] || 0) + (i.qty || i.quantity || 1);
+    });
+  });
+
+  const sorted = Object.entries(itemCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
+
+  if (sorted.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--ink3);font-size:12px">📊 Aaj ke orders aane ke baad yahan data dikhega</div>';
+    return;
+  }
+
+  const rankStyles = [
+    { icon:'🥇', bg:'#fef3c7', color:'#d97706', barColor:'linear-gradient(90deg,#f59e0b,#d97706)', numColor:'var(--amber)' },
+    { icon:'🥈', bg:'#f3f4f6', color:'#6b7280', barColor:'linear-gradient(90deg,#10b981,#059669)', numColor:'var(--G600)' },
+    { icon:'🥉', bg:'#fef2f2', color:'#dc2626', barColor:'linear-gradient(90deg,#3b82f6,#1d4ed8)', numColor:'var(--blue)' },
+    { icon:'#4',  bg:'var(--teal-bg)', color:'var(--teal)', barColor:'linear-gradient(90deg,#0f766e,#14b8a6)', numColor:'var(--teal)' },
+    { icon:'#5',  bg:'var(--violet-bg)', color:'var(--violet)', barColor:'linear-gradient(90deg,#7c3aed,#6d28d9)', numColor:'var(--violet)' },
+  ];
+
+  const maxCount = sorted[0][1];
+  el.innerHTML = sorted.map(([name, count], i) => {
+    const s = rankStyles[i];
+    const pct = Math.round((count / maxCount) * 95);
+    return `<div class="best-dish-row">
+      <div class="best-dish-rank" style="background:${s.bg};color:${s.color}">${s.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12.5px;font-weight:800;color:var(--ink)">${name}</div>
+        <div class="best-dish-bar-bg"><div class="best-dish-bar" style="width:${pct}%;background:${s.barColor}"></div></div>
+      </div>
+      <div style="font-size:12px;font-weight:900;color:${s.numColor};font-family:'JetBrains Mono',monospace">${count} ×</div>
+    </div>`;
+  }).join('');
+}
+
+// ── STAFF PERFORMANCE (orders mein captainName / servedBy / waiter field se) ──
+function renderStaffPerformance() {
+  const el = document.getElementById('staffPerfContainer');
+  if (!el) return;
+
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const allOrders = (_captainFirebaseOrders || []).concat((_captainOrderHistory || []).filter(o => {
+    const ts = o.timestamp || o.completedAt || o.createdAt || 0;
+    return new Date(typeof ts === 'string' ? ts : Number(ts)) >= todayStart;
+  }));
+
+  // Staff order count
+  const staffCounts = {};
+  const staffRevenue = {};
+  allOrders.forEach(o => {
+    const name = o.captainName || o.servedBy || o.waiter || o.staffName || o.assignedTo || '';
+    if (!name || name.trim() === '') return;
+    staffCounts[name] = (staffCounts[name] || 0) + 1;
+    const amt = (o.items||[]).reduce((s,i) => s + ((i.price||0)*(i.qty||1)), 0);
+    staffRevenue[name] = (staffRevenue[name] || 0) + amt;
+  });
+
+  const sorted = Object.entries(staffCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
+
+  if (sorted.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--ink3);font-size:12px">👨‍🍳 Staff ke orders assign hone ke baad yahan dikhega</div>';
+    return;
+  }
+
+  const barColors = [
+    'linear-gradient(90deg,#34d399,#059669)',
+    'linear-gradient(90deg,#93c5fd,#1d4ed8)',
+    'linear-gradient(90deg,#fcd34d,#d97706)',
+    'linear-gradient(90deg,#c4b5fd,#7c3aed)',
+    'linear-gradient(90deg,#f9a8d4,#db2777)',
+  ];
+  const numColors = ['var(--G600)','var(--blue)','var(--amber)','var(--violet)','#db2777'];
+  const avatarBgs = ['#059669','#1d4ed8','#d97706','#7c3aed','#db2777'];
+
+  const maxCount = sorted[0][1];
+  const topName = sorted[0][0];
+  const topOrders = sorted[0][1];
+  const topAvg = staffRevenue[topName] && topOrders ? Math.round(staffRevenue[topName]/topOrders) : 0;
+
+  const rows = sorted.map(([name, count], i) => {
+    const initials = name.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
+    const pct = Math.round((count / maxCount) * 92);
+    return `<div class="dash-staff-row">
+      <div class="dash-staff-avatar" style="background:${avatarBgs[i]}">${initials}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:800;color:var(--ink)">${name}</div>
+        <div class="dash-staff-bar-wrap"><div class="dash-staff-bar" style="width:${pct}%;background:${barColors[i]}"></div></div>
+      </div>
+      <div style="font-size:12px;font-weight:900;color:${numColors[i]};font-family:'JetBrains Mono',monospace">${count}</div>
+    </div>`;
+  }).join('');
+
+  const topBanner = topAvg > 0
+    ? `<div style="margin-top:12px;padding:10px;background:var(--G50);border:1px solid var(--G100);border-radius:8px;font-size:11px;color:var(--G700);font-weight:700">⭐ Top performer: <b>${topName}</b> — ${topOrders} orders, avg ₹${topAvg.toLocaleString('en-IN')}/order</div>`
+    : `<div style="margin-top:12px;padding:10px;background:var(--G50);border:1px solid var(--G100);border-radius:8px;font-size:11px;color:var(--G700);font-weight:700">⭐ Top performer: <b>${topName}</b> — ${topOrders} orders today</div>`;
+
+  el.innerHTML = rows + topBanner;
+}
+
+// ── LOW STOCK ALERTS (Firebase 'inventory' collection se) ──
+async function renderLowStockAlerts() {
+  const el = document.getElementById('lowStockContainer');
+  const badge = document.getElementById('lowStockBadge');
+  if (!el) return;
+
+  // Inventory collection check karo
+  if (!_captainDb || !_captainCollection || !_captainOnSnapshot) {
+    // Firebase ready nahi — retry in 2s
+    setTimeout(renderLowStockAlerts, 2000);
+    return;
+  }
+
+  // Already listening? Skip
+  if (window._lowStockListenerActive) return;
+  window._lowStockListenerActive = true;
+
+  try {
+    _captainOnSnapshot(_captainCollection(_captainDb, 'inventory'), snap => {
+      const items = [];
+      snap.forEach(d => items.push({ _id: d.id, ...d.data() }));
+
+      // Low stock filter: quantity <= threshold (ya percentage <= 20%)
+      const lowItems = items.filter(item => {
+        const qty = parseFloat(item.quantity || item.qty || item.stock || 0);
+        const threshold = parseFloat(item.threshold || item.minStock || item.reorderLevel || 0);
+        const maxQty = parseFloat(item.maxQuantity || item.totalStock || item.capacity || 0);
+
+        if (threshold > 0 && qty <= threshold) return true;
+        if (maxQty > 0 && qty / maxQty <= 0.20) return true; // 20% se kam
+        return false;
+      });
+
+      // Badge update
+      if (badge) {
+        if (lowItems.length > 0) {
+          badge.textContent = lowItems.length + ' Items';
+          badge.style.background = 'var(--red)';
+          badge.style.color = '#fff';
+        } else {
+          badge.textContent = '✅ OK';
+          badge.style.background = 'var(--G50)';
+          badge.style.color = 'var(--G600)';
+        }
+      }
+
+      if (lowItems.length === 0) {
+        // Check if inventory exists at all
+        if (items.length === 0) {
+          el.querySelector('.stock-list-wrap') && el.querySelector('.stock-list-wrap').remove();
+          const existing = el.querySelector('.stock-no-data');
+          if (!existing) {
+            const msg = document.createElement('div');
+            msg.className = 'stock-no-data';
+            msg.style.cssText = 'text-align:center;padding:20px;color:var(--ink3);font-size:12px';
+            msg.innerHTML = '📦 Firebase mein <b>inventory</b> collection add karo stock tracking ke liye';
+            el.insertBefore(msg, el.firstChild);
+          }
+        } else {
+          const existing = el.querySelector('.stock-no-data') || el.querySelector('.stock-list-wrap');
+          if (existing) existing.remove();
+          const msg = document.createElement('div');
+          msg.className = 'stock-no-data';
+          msg.style.cssText = 'text-align:center;padding:20px;color:var(--G600);font-size:12px;font-weight:700';
+          msg.innerHTML = '✅ Sab items sufficient stock mein hain!';
+          el.insertBefore(msg, el.firstChild);
+        }
+        return;
+      }
+
+      // Sort by severity: critical first
+      lowItems.sort((a,b) => {
+        const pctA = parseFloat(a.maxQuantity||a.capacity||100) > 0 ? parseFloat(a.quantity||0)/parseFloat(a.maxQuantity||a.capacity||100) : 1;
+        const pctB = parseFloat(b.maxQuantity||b.capacity||100) > 0 ? parseFloat(b.quantity||0)/parseFloat(b.maxQuantity||b.capacity||100) : 1;
+        return pctA - pctB;
+      });
+
+      const html = lowItems.slice(0,5).map(item => {
+        const qty = parseFloat(item.quantity || item.qty || item.stock || 0);
+        const maxQty = parseFloat(item.maxQuantity || item.totalStock || item.capacity || 0);
+        const threshold = parseFloat(item.threshold || item.minStock || 0);
+        const unit = item.unit || item.uom || '';
+        const pct = maxQty > 0 ? qty/maxQty : (threshold > 0 ? qty/threshold : 0.5);
+        const name = item.name || item.itemName || item.item || item._id || 'Unknown Item';
+
+        let level, levelColor, levelBg, statusText;
+        if (pct <= 0.05) {
+          level = 'CRITICAL'; levelColor = '#fff'; levelBg = 'var(--red)';
+          statusText = `Only ${qty}${unit ? ' '+unit : ''} left — needs restock now`;
+        } else if (pct <= 0.12) {
+          level = 'LOW'; levelColor = '#fff'; levelBg = 'var(--orange)';
+          statusText = `~${qty}${unit ? ' '+unit : ''} remaining (1-2 hrs)`;
+        } else {
+          level = 'MEDIUM'; levelColor = '#fff'; levelBg = 'var(--amber)';
+          statusText = `${qty}${unit ? ' '+unit : ''} left (watch closely)`;
+        }
+
+        return `<div class="stock-alert-item">
+          <div>
+            <div style="font-weight:800;color:var(--ink);font-size:12.5px">${name}</div>
+            <div style="font-size:10px;color:${levelBg === 'var(--red)' ? 'var(--red)' : levelBg === 'var(--orange)' ? 'var(--orange)' : 'var(--amber)'};font-weight:600">${statusText}</div>
+          </div>
+          <span style="font-size:10px;background:${levelBg};color:${levelColor};border-radius:5px;padding:2px 8px;font-weight:800">${level}</span>
+        </div>`;
+      }).join('');
+
+      // Clear old data
+      const oldWrap = el.querySelector('.stock-list-wrap');
+      if (oldWrap) oldWrap.remove();
+      const oldMsg = el.querySelector('.stock-no-data');
+      if (oldMsg) oldMsg.remove();
+
+      const wrap = document.createElement('div');
+      wrap.className = 'stock-list-wrap';
+      wrap.innerHTML = html;
+      el.insertBefore(wrap, el.firstChild);
+    });
+  } catch(e) {
+    console.warn('[LowStock] Firebase listener error:', e);
+    window._lowStockListenerActive = false;
+    // Fallback: show helpful message
+    const oldMsg = el.querySelector('.stock-no-data');
+    if (!oldMsg) {
+      const msg = document.createElement('div');
+      msg.className = 'stock-no-data';
+      msg.style.cssText = 'text-align:center;padding:20px;color:var(--ink3);font-size:12px';
+      msg.innerHTML = '📦 Inventory data load nahi hua. Firebase mein <b>inventory</b> collection check karo.';
+      el.insertBefore(msg, el.firstChild);
+    }
+    if (badge) { badge.textContent = '?'; }
   }
 }
 
@@ -18026,16 +18691,7 @@ if (document.querySelector('.page.active[id="page-orderplace"]') && window.inner
     height: auto !important;
     overflow: visible !important;
   }
-  #orderCartPanel {
-    width: 100% !important;
-    max-height: none !important;
-    height: auto !important;
-    overflow: visible !important;
-    -webkit-overflow-scrolling: touch !important;
-    border-radius: 14px !important;
-    position: static !important;
-    padding-bottom: 100px !important;
-  }
+  /* orderCartPanel visibility/position handled by mob-visible toggle system above */
   /* Menu item cards on mobile */
   .order-menu { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
   .menu-item-card { padding: 10px !important; }
@@ -18168,15 +18824,15 @@ if (document.querySelector('.page.active[id="page-orderplace"]') && window.inner
   /* ══════════════════════════════════════════
      FLOATING ELEMENTS
   ══════════════════════════════════════════ */
-  .theme-switcher { bottom: 68px !important; right: 10px !important; }
+  /* theme-switcher repositioned to topbar via inline style */
   /* AI chat bubble */
-  #aiFloatBtn { bottom: 72px !important; right: 10px !important; }
+  #aiFloatBtn { top: 164px !important; bottom: auto !important; right: 10px !important; }
 
   /* ══════════════════════════════════════════
      CONTENT AREA
   ══════════════════════════════════════════ */
   .content {
-    padding: 14px 12px 78px !important;
+    padding: 14px 12px 110px !important;
     margin-left: 0 !important;
   }
 
@@ -18234,20 +18890,7 @@ if (document.querySelector('.page.active[id="page-orderplace"]') && window.inner
     orderPanel.style.overflowY = 'auto';
     orderPanel.id = 'rtsOrderPanel';
 
-    // Add floating cart button
-    var fab = document.createElement('button');
-    fab.id = 'rtsMobCartFab';
-    fab.style.cssText = 'position:fixed;bottom:70px;right:14px;z-index:401;background:var(--G700);color:#fff;border:none;border-radius:50%;width:52px;height:52px;font-size:20px;box-shadow:0 4px 18px rgba(5,150,105,.45);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;';
-    fab.innerHTML = '🛒<span id="rtsFabBadge" style="position:absolute;top:2px;right:2px;background:var(--red);color:#fff;border-radius:50%;min-width:16px;height:16px;font-size:9px;font-weight:800;display:none;align-items:center;justify-content:center;padding:0 3px;"></span>';
-    fab.onclick = function(){
-      var p = document.getElementById('rtsOrderPanel');
-      if(p){
-        var isOpen = p.style.display !== 'none';
-        p.style.display = isOpen ? 'none' : 'flex';
-        fab.style.background = isOpen ? 'var(--G700)' : 'var(--G600)';
-      }
-    };
-    document.body.appendChild(fab);
+    // Floating cart button removed
 
     // Make left panel full width
     var leftPanel = splitDiv.querySelector('div[style*="flex:1"]');
@@ -18386,10 +19029,10 @@ if (document.querySelector('.page.active[id="page-orderplace"]') && window.inner
 @keyframes capPopOut{to{transform:translateX(110%) scale(.9);opacity:0}}
 @keyframes capPopProgress{from{width:100%}to{width:0%}}
 @keyframes capUrgentShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
-#captainNotifTrayBtn{position:fixed;bottom:24px;right:18px;z-index:9998;width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#1d4ed8,#7c3aed);border:none;color:#fff;font-size:22px;cursor:pointer;box-shadow:0 4px 18px rgba(29,78,216,.4);display:flex;align-items:center;justify-content:center;transition:.2s;font-family:'Outfit',sans-serif}
+#captainNotifTrayBtn{position:fixed;top:110px;right:10px;z-index:9998;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#1d4ed8,#7c3aed);border:none;color:#fff;font-size:22px;cursor:pointer;box-shadow:0 4px 18px rgba(29,78,216,.4);display:flex;align-items:center;justify-content:center;transition:.2s;font-family:'Outfit',sans-serif}
 #captainNotifTrayBtn:hover{transform:scale(1.1)}
 #captainNotifTrayBadge{position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;font-size:10px;font-weight:800;border-radius:20px;padding:1px 6px;font-family:'Outfit',sans-serif;min-width:18px;text-align:center;display:none}
-#captainNotifTray{position:fixed;bottom:84px;right:18px;z-index:9997;width:340px;max-height:420px;background:#fff;border-radius:20px;box-shadow:0 12px 48px rgba(0,0,0,.18);overflow:hidden;display:none;flex-direction:column;font-family:'Outfit',sans-serif;border:1.5px solid rgba(29,78,216,.1)}
+#captainNotifTray{position:fixed;top:170px;right:10px;z-index:9997;width:340px;max-height:420px;background:#fff;border-radius:20px;box-shadow:0 12px 48px rgba(0,0,0,.18);overflow:hidden;display:none;flex-direction:column;font-family:'Outfit',sans-serif;border:1.5px solid rgba(29,78,216,.1)}
 #captainNotifTray.open{display:flex;animation:capTrayOpen .3s cubic-bezier(0.16,1,0.3,1) both}
 @keyframes capTrayOpen{from{transform:translateY(20px) scale(.95);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
 .cap-tray-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid #f0f0f0;background:linear-gradient(135deg,#1d4ed8,#7c3aed);color:#fff}
@@ -18404,7 +19047,7 @@ if (document.querySelector('.page.active[id="page-orderplace"]') && window.inner
 .cap-tray-empty{text-align:center;padding:32px 16px;color:#9ca3af;font-size:12px;font-weight:600}
 </style>
 <div id="captainRichPopContainer"></div>
-<button id="captainNotifTrayBtn" onclick="captainToggleNotifTray()" title="Notifications">
+<button id="captainNotifTrayBtn" onclick="captainToggleNotifTray()" title="Notifications" style="display:none!important">
   🔔<span id="captainNotifTrayBadge">0</span>
 </button>
 <div id="captainNotifTray">
@@ -18638,7 +19281,26 @@ function confirmAndPlaceOrder() {
     });
 
     var todayRev = todayOrders.reduce(function(s, o) {
-      return s + (o.total || o.grandTotal || 0);
+      var direct = parseFloat(o.totalAmount || o.grandTotal || o.total || o.amount || 0);
+      if (direct > 0) return s + direct;
+      var fromItems = (o.items || []).reduce(function(si, i) {
+        var p = parseFloat(i.price || i.rate || 0);
+        var q = parseFloat(i.qty || i.quantity || 1);
+        return si + (isNaN(p)||isNaN(q) ? 0 : p*q);
+      }, 0);
+      return s + (isNaN(fromItems) ? 0 : fromItems);
+    }, 0);
+
+    // All-time revenue
+    var allTimeRev = allOrders.reduce(function(s, o) {
+      var direct = parseFloat(o.totalAmount || o.grandTotal || o.total || o.amount || 0);
+      if (direct > 0) return s + direct;
+      var fromItems = (o.items || []).reduce(function(si, i) {
+        var p = parseFloat(i.price || i.rate || 0);
+        var q = parseFloat(i.qty || i.quantity || 1);
+        return si + (isNaN(p)||isNaN(q) ? 0 : p*q);
+      }, 0);
+      return s + (isNaN(fromItems) ? 0 : fromItems);
     }, 0);
 
     var activeOrders = allOrders.filter(function(o) {
@@ -18656,14 +19318,18 @@ function confirmAndPlaceOrder() {
     var bar = document.querySelector('.stat-card.revenue-live .target-bar-fill');
     if (bar) bar.style.width = pct + '%';
 
-    // Progress text
+    // Progress text + all-time revenue
     var revCard = document.querySelector('.stat-card.revenue-live');
     if (revCard) {
       var pctText = revCard.querySelector('div[style*="rgba(255,255,255,.55)"]');
       if (pctText) pctText.textContent = pct + '% of daily target reached';
       var changeEl = revCard.querySelector('.stat-change');
-      if (changeEl && todayOrders.length > 0)
-        changeEl.textContent = todayOrders.length + ' orders aaj \u2022 Active: ' + activeOrders.length;
+      if (changeEl) {
+        if (allTimeRev > 0)
+          changeEl.textContent = '💰 Ab tak total: ' + _dFmt(allTimeRev);
+        else if (todayOrders.length > 0)
+          changeEl.textContent = todayOrders.length + ' orders aaj • Active: ' + activeOrders.length;
+      }
     }
 
     // Aria monitor bar
