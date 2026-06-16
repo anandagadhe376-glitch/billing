@@ -6658,11 +6658,8 @@ async function initFirebaseTablesSync(){
           const localPaidAt = tables[tNum]._paidAt && (Date.now() - new Date(tables[tNum]._paidAt).getTime() < 86400000);
           let locallyPaid = false;
           try{
-          let locallyPaid = false;
-          try{
             const paidTables2=JSON.parse(localStorage.getItem('lum_paid_tables')||'{}');
             if(paidTables2[tNum]){ const pt2=paidTables2[tNum]; const paidOId3=typeof pt2==='object'?pt2.orderId:null; const fbOId3=data._fbOrderId||''; locallyPaid=(paidOId3&&fbOId3)?paidOId3===fbOId3:true; }
-          }catch(e){}
           }catch(e){}
           if((recentlyPaid || locallyPaid || localPaidAt) && data.status === 'occupied'){
             tables[tNum].status = 'available';
@@ -6843,6 +6840,11 @@ function renderDashboardOrders(snap){
   await initFirebase();
   await initFirebaseTablesSync();
   await initFirebaseOrdersSync();
+  // ── Menu sync: app start pe hi load karo, Menu page click ka wait mat karo ──
+  if(!window._fbMenuInited){
+    window._fbMenuInited = true;
+    initFirebaseMenuSync();
+  }
 })();
 
 
@@ -16134,7 +16136,7 @@ function menuFilterByCategory(btn, cat){
       } catch(e){ console.warn('lum_orders sync error:', e); }
     }
 
-    if(window.showToast) showToast(_si(28) + ' Order placed! Total ₹'+tot.toFixed(2) + (savedToCloud ? ' — Chef set to KOT bhej granted! 🍳' : ' — Local save hua!'),'success');
+    if(window.showToast) showToast(_si(28) + ' Order placed! Total ₹'+tot.toFixed(2) + (savedToFirebase ? ' — Chef ko KOT bhej diya! 🍳' : ' — Local save hua!'),'success');
 
     // ── Notify Chef Panel (KDS) ──
     // 1. Auto-refresh KDS if open
