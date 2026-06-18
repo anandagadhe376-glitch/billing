@@ -880,6 +880,54 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .src-table{background:rgba(59,130,246,0.2);color:#60a5fa;border:1px solid rgba(59,130,246,0.35);}
 .src-other{background:rgba(201,168,76,0.15);color:var(--gold);border:1px solid rgba(201,168,76,0.3);}
 
+/* KDS — KOT Print Button */
+.kds-kot-print-btn{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 9px;
+  background:rgba(255,115,0,0.13);
+  border:1.5px solid rgba(255,115,0,0.45);
+  border-radius:7px;
+  color:#ff8c42;
+  font-family:var(--font-ui);font-size:9px;font-weight:800;
+  letter-spacing:1px;text-transform:uppercase;
+  cursor:pointer;flex-shrink:0;
+  transition:all 0.18s;
+}
+.kds-kot-print-btn:hover{
+  background:rgba(255,115,0,0.28);
+  box-shadow:0 0 10px rgba(255,115,0,0.35);
+  transform:translateY(-1px);
+}
+
+/* Order Desk — Per-item Cooking Instruction */
+.od-add-cook-note-btn{
+  display:block;width:100%;
+  padding:4px 8px;margin-top:5px;
+  background:transparent;
+  border:1px dashed #e0e0e0;
+  border-radius:7px;
+  color:#bbb;font-size:10px;font-weight:600;
+  cursor:pointer;font-family:inherit;
+  text-align:left;
+  transition:all 0.15s;
+}
+.od-add-cook-note-btn:hover{
+  border-color:#e67e22;color:#e67e22;background:#fff8f0;
+}
+.od-item-cook-note{
+  display:flex;align-items:center;gap:5px;
+  margin-top:5px;padding:4px 8px;
+  background:#fff8f0;
+  border:1px solid rgba(230,126,34,0.35);
+  border-radius:7px;
+  font-size:10px;font-weight:600;color:#c0621a;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.od-item-cook-note:hover{
+  background:#fff3e0;border-color:#e67e22;
+}
+
 .kot-card-meta{
   display:flex;align-items:center;justify-content:space-between;
   padding:5px 12px 5px 16px;
@@ -897,11 +945,22 @@ body::before{content:'';position:fixed;inset:0;background-image:url("data:image/
 .kot-timer-badge.urgent-t{background:rgba(231,76,60,0.2);color:#e74c3c;border:1px solid rgba(231,76,60,0.4);animation:flash 1s infinite;}
 
 .kot-items{padding:8px 12px 8px 16px;}
+.kot-item-block{
+  border-bottom:1px solid rgba(255,255,255,0.04);
+  padding:4px 0;
+}
+.kot-item-block:last-child{border-bottom:none;}
 .kot-item-row{
   display:flex;align-items:center;justify-content:space-between;
-  padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);
 }
-.kot-item-row:last-child{border-bottom:none;}
+.kot-item-cook{
+  margin:4px 0 2px 0;padding:3px 9px;
+  background:rgba(255,140,66,0.1);
+  border:1px solid rgba(255,140,66,0.3);
+  border-radius:6px;
+  font-family:var(--font-ui);font-size:10px;font-weight:600;
+  color:#ff8c42;font-style:italic;
+}
 .kot-item-name{
   font-family:var(--font-ui);font-size:13px;font-weight:700;
   color:#f0e8d0;flex:1;
@@ -1685,6 +1744,8 @@ canvas[id^="od-spark"]{width:38px!important;height:20px!important;flex-shrink:0;
 .od-btn-save:hover{background:#eaf4fc}
 .od-btn-print{padding:10px;border:1.5px solid #95a5a6;background:#fff;color:#555;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.15s}
 .od-btn-print:hover{background:#f5f5f5}
+.od-btn-kot{width:100%;padding:11px;border:2px solid #ff8c42;background:linear-gradient(135deg,rgba(255,115,0,0.12),rgba(255,60,0,0.08));color:#ff8c42;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.18s;letter-spacing:0.5px}
+.od-btn-kot:hover{background:linear-gradient(135deg,rgba(255,115,0,0.25),rgba(255,60,0,0.18));box-shadow:0 0 14px rgba(255,115,0,0.3);transform:translateY(-1px)}
 .od-empty-cart{text-align:center;padding:40px 20px;color:#ccc}
 .od-empty-cart .od-empty-icon{font-size:44px;margin-bottom:10px}
 /* Special instruction modal */
@@ -3160,10 +3221,10 @@ body.od-fullscreen #page-order-desk .od-left {
   border-bottom: 1px solid rgba(255,255,255,0.1) !important;
   background: rgba(0,0,0,0.25) !important;
 }
-[data-theme="greenpos"] .kot-item-row,
-[data-theme="pos"] .kot-item-row,
-[data-theme="redpos"] .kot-item-row,
-[data-theme="green"] .kot-item-row {
+[data-theme="greenpos"] .kot-item-block,
+[data-theme="pos"] .kot-item-block,
+[data-theme="redpos"] .kot-item-block,
+[data-theme="green"] .kot-item-block {
   border-bottom-color: rgba(255,255,255,0.07) !important;
 }
 [data-theme="greenpos"] .kot-note,

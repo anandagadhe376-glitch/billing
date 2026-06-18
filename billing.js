@@ -516,8 +516,8 @@ window._siploraFirebaseLoad = async function() {
           setTimeout(() => reject(new Error('Firebase modules timeout')), 10000);
         });
       }
-      const { initializeApp, getApps, getFirestore, collection, doc, addDoc, updateDoc, setDoc, deleteDoc, getDocs, onSnapshot, query, orderBy, writeBatch, serverTimestamp } = window.__firebaseModules;
-      const fbMod = { getFirestore, collection, doc, addDoc, updateDoc, setDoc, deleteDoc, getDocs, onSnapshot, query, orderBy, writeBatch, serverTimestamp };
+      const { initializeApp, getApps, getFirestore, collection, doc, addDoc, updateDoc, setDoc, deleteDoc, getDocs, onSnapshot, query, orderBy, writeBatch, serverTimestamp, getStorage, ref, uploadBytes, getDownloadURL } = window.__firebaseModules;
+      const fbMod = { getFirestore, collection, doc, addDoc, updateDoc, setDoc, deleteDoc, getDocs, onSnapshot, query, orderBy, writeBatch, serverTimestamp, getStorage, ref, uploadBytes, getDownloadURL };
       const FB_CFG = {
         apiKey:"AIzaSyBsRxWD2R1GkSEM-duLwQe3jAi7yw5vvvM",
         authDomain:"restaurant-system-beec1.firebaseapp.com",
@@ -530,6 +530,13 @@ window._siploraFirebaseLoad = async function() {
       window.__fbApp = apps.length ? apps[0] : initializeApp(FB_CFG);
       window.__fbDb = fbMod.getFirestore(window.__fbApp);
       window.__db  = window.__fbDb;
+      // Firebase Storage setup
+      if(fbMod.getStorage){
+        window.__fbStorage = fbMod.getStorage(window.__fbApp);
+        window.__storageRef = fbMod.ref;
+        window.__uploadBytes = fbMod.uploadBytes;
+        window.__getDownloadURL = fbMod.getDownloadURL;
+      }
       window.__col = fbMod.collection;
       window.__doc = fbMod.doc;
       window.__addDoc = fbMod.addDoc;
@@ -3202,6 +3209,7 @@ function _buildMenuCardBody(d, idx, showDelete) {
   imgEl.style.cssText = 'position:relative;';
   if(d.imageUrl){
     const im = document.createElement('img');
+    im.crossOrigin = 'anonymous';
     im.src = d.imageUrl;
     im.style.cssText = 'width:100%;height:110px;object-fit:cover;display:block;border-radius:14px 14px 0 0;';
     im.onerror = function(){ this.style.display='none'; };
@@ -3209,7 +3217,7 @@ function _buildMenuCardBody(d, idx, showDelete) {
   } else {
     const em = document.createElement('div');
     em.style.cssText = 'width:100%;height:110px;background:linear-gradient(135deg,var(--dark3),var(--dark4));display:flex;align-items:center;justify-content:center;font-size:36px;border-radius:14px 14px 0 0;';
-    em.textContent = d.emoji || ''+_si(11)+'️';
+    const _emojiVal = d.emoji || '🍽️'; if(_emojiVal.trim().startsWith('<')){ em.innerHTML = _emojiVal; } else { em.textContent = _emojiVal; }
     imgEl.appendChild(em);
   }
   const statusPill = document.createElement('span');
@@ -3362,6 +3370,7 @@ function editMenuItemUI(i){
   if(ratingEl) ratingEl.value = d.rating || '';
   updateStarDisplay(d.rating || 0);
   if(d.imageUrl){ const urlEl = document.getElementById('dish-img-url'); if(urlEl) urlEl.value = d.imageUrl; applyDishImageUrl(d.imageUrl); }
+  populateDishRecipeForm(d.recipe || []);
   const addTitle = document.querySelector('#menu-add .section-title');
   if(addTitle) addTitle.textContent = _si(42) + '️ Edit Dish';
   const saveBtn = document.querySelector('#menu-add .btn-gold');
@@ -3396,6 +3405,99 @@ function autoCalcHalfPrice(){
   }
 }
 
+// ═══ DISH RECIPE (Stock Linking for Auto Inventory Tracking) ═══
+function addDishRecipeRow(stockName, qty){
+  const container = document.getElementById('dish-recipe-container');
+  if(!container) return;
+  const matched = (stockItems||[]).find(s => s.name === stockName);
+  const options = (stockItems||[]).map(s =>
+    '<option value="'+s.name.replace(/"/g,'&quot;')+'" data-unit="'+(s.unit||'')+'"'+(s.name===stockName?' selected':'')+'>'+s.name+' ('+(s.unit||'')+')</option>'
+  ).join('');
+  const row = document.createElement('div');
+  row.className = 'dish-recipe-row';
+  row.style.cssText = 'display:flex;gap:8px;align-items:center';
+  row.innerHTML =
+    '<select class="form-select dish-recipe-stock" style="flex:2" onchange="this.parentElement.querySelector(\'.dish-recipe-unit\').textContent=this.selectedOptions[0]?this.selectedOptions[0].dataset.unit||\'\':\'\'">' +
+      '<option value="">-- Stock Item --</option>' + options +
+    '</select>' +
+    '<input class="form-input dish-recipe-qty" type="number" step="0.01" min="0" placeholder="Qty / plate" value="'+(qty||'')+'" style="flex:1"/>' +
+    '<span class="dish-recipe-unit" style="font-family:var(--font-ui);font-size:10px;color:rgba(245,240,232,0.45);min-width:28px">'+(matched?matched.unit||'':'')+'</span>' +
+    '<button type="button" class="btn btn-ghost btn-sm" onclick="this.closest(\'.dish-recipe-row\').remove()" style="padding:6px 10px;color:#e74c3c;border-color:rgba(231,76,60,0.3)">✕</button>';
+  container.appendChild(row);
+  if(!stockItems || !stockItems.length){
+    showToast('Inventory me abhi koi stock item nahi hai — pehle Inventory page se stock add karo','warning');
+  }
+}
+
+function getDishRecipeFromForm(){
+  const rows = document.querySelectorAll('#dish-recipe-container .dish-recipe-row');
+  const recipe = [];
+  rows.forEach(row=>{
+    const stockName = (row.querySelector('.dish-recipe-stock')||{}).value || '';
+    const qty = parseFloat((row.querySelector('.dish-recipe-qty')||{}).value) || 0;
+    if(stockName && qty > 0){
+      const stockItem = (stockItems||[]).find(s=>s.name===stockName);
+      recipe.push({ stockName, qty, unit: stockItem ? (stockItem.unit||'') : '' });
+    }
+  });
+  return recipe;
+}
+
+function populateDishRecipeForm(recipeArr){
+  const container = document.getElementById('dish-recipe-container');
+  if(!container) return;
+  container.innerHTML = '';
+  (recipeArr||[]).forEach(r => addDishRecipeRow(r.stockName, r.qty));
+}
+
+function clearDishRecipeForm(){
+  const container = document.getElementById('dish-recipe-container');
+  if(container) container.innerHTML = '';
+}
+
+// ═══ AUTO STOCK DEDUCTION — jab order ka bill complete hota hai ═══
+function deductStockForOrder(orderItems){
+  if(!orderItems || !orderItems.length) return;
+  if(!stockItems || !stockItems.length) return;
+  const usedLog = [];
+  const lowAfter = [];
+  orderItems.forEach(oi=>{
+    const qtyOrdered = parseFloat(oi.qty) || 1;
+    let rawName = String(oi.name||'');
+    let portionFactor = 1;
+    if(/\[half\]/i.test(rawName)){
+      portionFactor = 0.5;
+      rawName = rawName.replace(/\s*\[half\]\s*/i,'').trim();
+    }
+    const dish = (menuItems||[]).find(m => (m.name||'').toLowerCase() === rawName.toLowerCase());
+    if(!dish || !dish.recipe || !dish.recipe.length) return;
+    dish.recipe.forEach(ing=>{
+      const idx = stockItems.findIndex(s => (s.name||'').toLowerCase() === String(ing.stockName||'').toLowerCase());
+      if(idx === -1) return;
+      const usedQty = (parseFloat(ing.qty) || 0) * qtyOrdered * portionFactor;
+      if(usedQty <= 0) return;
+      const before = parseFloat(stockItems[idx].qty) || 0;
+      const after = Math.max(0, Math.round((before - usedQty) * 100) / 100);
+      stockItems[idx].qty = after;
+      usedLog.push({ name: stockItems[idx].name, used: Math.round(usedQty*100)/100, unit: stockItems[idx].unit||'', left: after });
+      if(after <= (parseFloat(stockItems[idx].alertAt) || 0)) lowAfter.push(stockItems[idx]);
+    });
+  });
+
+  if(usedLog.length){
+    save('stock', stockItems);
+    window.stockItems = stockItems;
+    if(document.getElementById('page-inventory') && document.getElementById('page-inventory').classList.contains('active')){
+      renderInventoryTable(); checkStockAlerts(); updateInvStats();
+    }
+    const summary = usedLog.map(u=>u.name+': −'+u.used+u.unit+' (bacha '+u.left+u.unit+')').join(' · ');
+    showToast('📦 Stock auto-updated → '+summary, lowAfter.length ? 'warning' : 'success');
+    if(lowAfter.length && typeof siploraAddNotif==='function'){
+      siploraAddNotif('⚠️','Stock Alert', lowAfter.map(i=>i.name+' low: '+i.qty+' '+(i.unit||'')).join(', ')+' — order place karo','warning');
+    }
+  }
+}
+
 async function saveDish(){
   const name=document.getElementById('dish-name').value.trim();
   if(!name){ showToast('Enter dish name','warning'); return; }
@@ -3426,6 +3528,7 @@ async function saveDish(){
     desc: document.getElementById('dish-desc').value,
     active: true,
     imageUrl: imgData || imgUrl,
+    recipe: getDishRecipeFromForm(),
     addedAt: new Date().toISOString()
   };
 
@@ -3492,26 +3595,70 @@ async function saveDish(){
 
 function previewDishImage(input){
   if(!input.files||!input.files[0])return;
-  const reader=new FileReader();
-  reader.onload=function(e){
-    const wrap=document.getElementById('dish-img-preview-wrap');
+  const file = input.files[0];
+
+  // Show local preview immediately
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const wrap = document.getElementById('dish-img-preview-wrap');
     if(wrap){
-      wrap.innerHTML='';
-      const img=document.createElement('img');
-      img.src=e.target.result;
-      img.style.cssText='width:100%;height:160px;object-fit:cover;border-radius:8px';
+      wrap.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = e.target.result;
+      img.style.cssText = 'width:100%;height:160px;object-fit:cover;border-radius:8px';
       wrap.appendChild(img);
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'font-family:var(--font-ui);font-size:9px;color:rgba(245,240,232,0.4);margin-top:4px';
+      lbl.textContent = 'Uploading to cloud...';
+      lbl.id = 'dish-img-upload-status';
+      wrap.appendChild(lbl);
     }
-    const hidden=document.getElementById('dish-img-data');
-    if(hidden) hidden.value=e.target.result;
-    const urlEl=document.getElementById('dish-img-url');
-    if(urlEl) urlEl.value='';
   };
-  reader.readAsDataURL(input.files[0]);
+  reader.readAsDataURL(file);
+
+  // Upload to Firebase Storage if available
+  if(window.__fbStorage && window.__storageRef && window.__uploadBytes && window.__getDownloadURL){
+    const fileName = 'dish_images/' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const storageRef = window.__storageRef(window.__fbStorage, fileName);
+    window.__uploadBytes(storageRef, file).then(function(snapshot){
+      return window.__getDownloadURL(snapshot.ref);
+    }).then(function(downloadURL){
+      // Save the Firebase URL instead of base64
+      const urlEl = document.getElementById('dish-img-url');
+      if(urlEl) urlEl.value = downloadURL;
+      const hidden = document.getElementById('dish-img-data');
+      if(hidden) hidden.value = ''; // Clear base64, use URL instead
+      const statusEl = document.getElementById('dish-img-upload-status');
+      if(statusEl) statusEl.textContent = 'Uploaded! Works on all browsers ✓';
+      console.log('[Siplora] Image uploaded to Firebase Storage:', downloadURL);
+    }).catch(function(err){
+      console.warn('[Siplora] Firebase Storage upload failed, using base64 fallback:', err);
+      // Fallback: use base64 (old behaviour)
+      const readerFallback = new FileReader();
+      readerFallback.onload = function(e2){
+        const hidden = document.getElementById('dish-img-data');
+        if(hidden) hidden.value = e2.target.result;
+        const statusEl = document.getElementById('dish-img-upload-status');
+        if(statusEl) statusEl.textContent = 'Saved locally (cloud upload failed)';
+      };
+      readerFallback.readAsDataURL(file);
+    });
+  } else {
+    // No Firebase Storage: fallback to base64
+    const readerB64 = new FileReader();
+    readerB64.onload = function(e3){
+      const hidden = document.getElementById('dish-img-data');
+      if(hidden) hidden.value = e3.target.result;
+      const urlEl = document.getElementById('dish-img-url');
+      if(urlEl) urlEl.value = '';
+    };
+    readerB64.readAsDataURL(file);
+  }
 }
 
 function clearDishForm(){
   ['dish-name','dish-price','dish-half-price','dish-emoji','dish-desc','dish-img-data','dish-img-url','dish-deal-label','dish-rating'].forEach(id=>{ const e=document.getElementById(id); if(e)e.value=''; });
+  clearDishRecipeForm();
   const wrap=document.getElementById('dish-img-preview-wrap');
   if(wrap) wrap.innerHTML='<div style="font-size:28px;margin-bottom:6px">'+_si(47)+'️</div><div style="font-family:var(--font-ui);font-size:11px;color:rgba(245,240,232,0.45);letter-spacing:1px">Click to upload food photo</div><div style="font-family:var(--font-ui);font-size:9px;color:rgba(245,240,232,0.25);margin-top:4px">JPG, PNG, WEBP supported</div>';
   const hotT = document.getElementById('dish-hot-toggle'); if(hotT) hotT.classList.add('on');
@@ -3776,7 +3923,10 @@ function renderOrdersPage(){
       rows=`<tr><td colspan="7" style="text-align:center;color:rgba(245,240,232,0.3);padding:32px;font-family:var(--font-ui);font-size:12px">No active orders right now</td></tr>`;
     } else {
       active.forEach(o=>{
-        const items=(o.items||[]).map(it=>`${it.name||it} ×${it.qty||1}`).join(', ');
+        const items=(o.items||[]).map(it=>{
+          const cook=it.cookNote||it.cookInstruction||it.instruction||'';
+          return `${it.name||it} ×${it.qty||1}`+(cook?` <span style="color:#f39c12;font-size:10px">(📌 ${cook})</span>`:'');
+        }).join('<br>');
         const subAmt=(o.items||[]).reduce((s,it)=>{
           let p=parseFloat(it.price)||0;
           return s+p*(parseInt(it.qty)||1);
@@ -3807,7 +3957,7 @@ function renderOrdersPage(){
       rows=`<tr><td colspan="7" style="text-align:center;color:rgba(245,240,232,0.3);padding:32px;font-family:var(--font-ui);font-size:12px">No active orders found — Connect sync</td></tr>`;
     } else {
       occupied.forEach(([tn,td])=>{
-        const items=td.order.map(it=>`${it.name} ×${it.qty||1}`).join(', ');
+        const items=td.order.map(it=>{const cook=it.cookNote||it.cookInstruction||it.instruction||'';return `${it.name} ×${it.qty||1}`+(cook?` <span style="color:#f39c12;font-size:10px">(📌 ${cook})</span>`:'');}).join('<br>');
         const sub=td.order.reduce((s,it)=>s+(parseFloat(it.price)||0)*(parseInt(it.qty)||1),0);
         const gst=Math.round(sub*gstRate/100)*2;
         rows+=`<tr>
@@ -3927,9 +4077,15 @@ function renderKDSPage(){
     var itemsHtml = items.map(function(it){
       var name = it.name || String(it);
       var qty  = it.qty || 1;
-      return '<div class="kot-item-row">'
-        + '<span class="kot-item-name">'+ name +'</span>'
-        + '<span class="kot-item-qty">× '+ qty +'</span>'
+      var cookInstr = it.cookNote || it.cookInstruction || it.instruction || it.customInstruction || it.customNote || '';
+      var spiceInstr = (it.spiceLevel && it.spiceLevel !== 'normal') ? it.spiceLevel : ((it.spice && it.spice !== 'normal') ? it.spice : '');
+      var cookHtml = (spiceInstr ? '<div class="kot-item-cook">🌶️ Spice: '+ spiceInstr +'</div>' : '') + (cookInstr ? '<div class="kot-item-cook">📌 '+ cookInstr +'</div>' : '');
+      return '<div class="kot-item-block">'
+        + '<div class="kot-item-row">'
+        +   '<span class="kot-item-name">'+ name +'</span>'
+        +   '<span class="kot-item-qty">× '+ qty +'</span>'
+        + '</div>'
+        + cookHtml
         + '</div>';
     }).join('');
     if(!itemsHtml) itemsHtml = '<div class="kot-item-row"><span class="kot-item-name" style="color:rgba(240,232,208,0.5)">No items</span></div>';
@@ -3941,6 +4097,12 @@ function renderKDSPage(){
     var custHtml = o.customerName
       ? '<div class="kot-cust-row"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> '+ o.customerName +(o.customerPhone ? ' · '+o.customerPhone : '')+'</div>'
       : '';
+
+    // KOT Print Button (all card types)
+    var kotBtnHtml = '<button class="kds-kot-print-btn" onclick="kdsShowKOT(\''+safeId+'\')" title="KOT Print karo">'
+      + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>'
+      + ' KOT'
+      + '</button>';
 
     // Action buttons
     var actionHtml = '';
@@ -3967,10 +4129,17 @@ function renderKDSPage(){
         + '</div>';
     }
 
+    // Store order data on window for KOT modal access
+    window._kdsOrders = window._kdsOrders || {};
+    window._kdsOrders[safeId] = o;
+
     return '<div class="kot-card status-'+ colType +'" id="kot-card-'+safeId+'">'
       + '<div class="kot-card-head">'
       +   '<span class="kot-order-num">'+ orderNum +'</span>'
-      +   '<span class="kot-order-src '+ srcClass +'">'+ srcLabel +'</span>'
+      +   '<div style="display:flex;align-items:center;gap:6px">'
+      +     kotBtnHtml
+      +     '<span class="kot-order-src '+ srcClass +'">'+ srcLabel +'</span>'
+      +   '</div>'
       + '</div>'
       + '<div class="kot-card-meta">'
       +   '<span class="kot-table-tag">'
@@ -4458,7 +4627,7 @@ let stockEditIndex = -1; // -1 = new item, >= 0 = edit mode
 
 function openAddStockModal(){
   stockEditIndex = -1;
-  document.getElementById('stock-modal-title').textContent = _si(8) + ' Add New Stock Item';
+  document.getElementById('stock-modal-title').innerHTML = _si(8) + ' Add New Stock Item';
   ['stock-name','stock-brand','stock-batch','stock-sku','stock-location','stock-qty','stock-alert','stock-critical','stock-max-qty','stock-purchase-price','stock-sell-price','stock-mfg-date','stock-last-purchase','stock-expiry','stock-supplier','stock-supplier-phone','stock-supplier-email','stock-reorder-qty','stock-lead-time','stock-usage','stock-notes','stock-auto-trigger','stock-reorder-msg'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
@@ -4562,7 +4731,7 @@ function editStockItem(btn){
     stockEditIndex=-1;
     populateStockModal(itemData);
   }
-  document.getElementById('stock-modal-title').textContent=_si(42) + '️ Edit: '+itemData.name;
+  document.getElementById('stock-modal-title').innerHTML=_si(42) + '️ Edit: '+itemData.name;
   document.getElementById('stock-modal').classList.add('open');
 }
 
@@ -6530,6 +6699,103 @@ async function initFirebaseMenuSync(){
 }
 if(typeof window._fbMenuInited === 'undefined') window._fbMenuInited = false;
 
+// =====================================================================
+// MIGRATE OLD BASE64 IMAGES TO FIREBASE STORAGE
+// =====================================================================
+async function migrateBase64ImagesToFirebase(){
+  // Check Firebase Storage available
+  if(!window.__fbStorage || !window.__storageRef || !window.__uploadBytes || !window.__getDownloadURL){
+    showToast('Firebase Storage ready nahi hai, thoda ruko...', 'warning');
+    return;
+  }
+  if(!window.__db || !window.__setDoc || !window.__doc){
+    showToast('Firebase DB ready nahi hai, thoda ruko...', 'warning');
+    return;
+  }
+
+  // Find dishes with base64 imageUrl
+  const base64Dishes = menuItems.filter(d => d.imageUrl && d.imageUrl.startsWith('data:'));
+  if(base64Dishes.length === 0){
+    showToast('✅ Sab images pehle se cloud pe hain!', 'success');
+    return;
+  }
+
+  showToast('⏳ ' + base64Dishes.length + ' dish images migrate ho rahi hain...', 'info');
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for(const dish of base64Dishes){
+    try{
+      // Convert base64 to blob
+      const base64Data = dish.imageUrl;
+      const mimeMatch = base64Data.match(/data:([^;]+);base64,/);
+      const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+      const base64String = base64Data.split(',')[1];
+      const byteChars = atob(base64String);
+      const byteArr = new Uint8Array(byteChars.length);
+      for(let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArr], { type: mimeType });
+
+      // Upload to Firebase Storage
+      const ext = mimeType.split('/')[1] || 'jpg';
+      const fileName = 'dish_images/' + Date.now() + '_' + (dish.name||'dish').replace(/[^a-zA-Z0-9]/g,'_') + '.' + ext;
+      const storageRef = window.__storageRef(window.__fbStorage, fileName);
+      const snapshot = await window.__uploadBytes(storageRef, blob);
+      const downloadURL = await window.__getDownloadURL(snapshot.ref);
+
+      // Update dish in menuItems array
+      dish.imageUrl = downloadURL;
+
+      // Update in Firebase Firestore if has _fbId
+      if(dish._fbId){
+        const docFn = window.__doc;
+        const setDocFn = window.__setDoc;
+        await setDocFn(docFn(window.__db, 'menuItems', dish._fbId), dish);
+      }
+
+      successCount++;
+      console.log('[Siplora] Migrated:', dish.name, '->', downloadURL);
+    } catch(err){
+      failCount++;
+      console.warn('[Siplora] Migration failed for:', dish.name, err);
+    }
+  }
+
+  // Save updated menuItems to localStorage
+  save('menu', menuItems);
+  window.menuItems = menuItems;
+  renderMenuCards();
+  if(window.odRenderDishes) window.odRenderDishes();
+  if(window.mpRenderGrid) window.mpRenderGrid();
+
+  if(failCount === 0){
+    showToast('✅ ' + successCount + ' dishes ki images cloud pe migrate ho gayi! Ab sab browsers mein dikhegi!', 'success');
+  } else {
+    showToast('⚠️ ' + successCount + ' succeed, ' + failCount + ' fail. Console check karo.', 'warning');
+  }
+}
+window.migrateBase64ImagesToFirebase = migrateBase64ImagesToFirebase;
+
+// Auto-migrate on page load (after Firebase is ready)
+window._autoMigrateDone = false;
+function _tryAutoMigrate(){
+  if(window._autoMigrateDone) return;
+  if(!window.__fbStorage || !window.__db) return;
+  const base64Dishes = menuItems.filter(d => d.imageUrl && d.imageUrl.startsWith('data:'));
+  if(base64Dishes.length === 0){ window._autoMigrateDone = true; return; }
+  window._autoMigrateDone = true;
+  console.log('[Siplora] Auto-migrating', base64Dishes.length, 'base64 images to Firebase Storage...');
+  migrateBase64ImagesToFirebase();
+}
+// Try after 5 seconds (Firebase should be ready by then)
+setTimeout(_tryAutoMigrate, 5000);
+// Also try when Firebase signals ready
+document.addEventListener('firebaseModulesReady', function(){ setTimeout(_tryAutoMigrate, 2000); });
+// =====================================================================
+// END MIGRATE
+// =====================================================================
+
 async function quickAddToMenu(){
   const name = document.getElementById('qd-name')?.value.trim();
   const priceRaw = document.getElementById('qd-price')?.value;
@@ -6873,6 +7139,10 @@ function emailBill(){
 async function markTablePaidAndUpdate(){
   const d=window._autoBillData;
   if(!d) return;
+
+  if(d.td && d.td.order && d.td.order.length){
+    deductStockForOrder(d.td.order);
+  }
 
   if(tables[d.tableNum]){
     tables[d.tableNum].status='available';
@@ -15972,19 +16242,35 @@ function menuFilterByCategory(btn, cat){
         ? '<img src="' + _ea(item.imageUrl) + '" style="width:36px;height:36px;border-radius:6px;object-fit:cover;flex-shrink:0" onerror="this.style.display=\'none\'">'
           + '<span style="width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">' + (item.emoji||''+_si(11)+'️') + '</span>'
         : '<span style="width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">' + (item.emoji||''+_si(11)+'️') + '</span>';
-      html += '<div class="od-cart-item">'
-        + '<div class="od-cart-name">' + thumb
-          + '<div><div>' + _eh(item.name) + '</div>'
-          + '<div class="od-cart-subprice">₹' + item.price.toLocaleString('en-IN') + '</div></div></div>'
-        + '<div class="od-qty-ctrl" style="justify-content:center">'
-          + '<button class="od-qty-btn" onclick="odQty('+idx+',-1)">−</button>'
-          + '<span class="od-qty-num">' + item.qty + '</span>'
-          + '<button class="od-qty-btn plus" onclick="odQty('+idx+',1)">+</button>'
+
+      // Cooking instruction row
+      var cookNote = item.cookNote || '';
+      var instrRow = cookNote
+        ? '<div class="od-item-cook-note" onclick="odEditCookNote('+idx+')" title="Note edit karo">'
+          + '<span style="color:#e67e22;font-size:10px;font-weight:700">📌</span>'
+          + '<span>' + _eh(cookNote) + '</span>'
+          + '<span style="margin-left:auto;font-size:9px;color:#aaa;flex-shrink:0">✏️</span>'
+          + '</div>'
+        : '<button class="od-add-cook-note-btn" onclick="odEditCookNote('+idx+')">'
+          + '+ Cooking Instruction add karo'
+          + '</button>';
+
+      html += '<div class="od-cart-item" style="flex-direction:column;align-items:stretch;gap:0">'
+        + '<div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:6px;padding:2px 0">'
+          + '<div class="od-cart-name" style="margin:0">' + thumb
+            + '<div><div>' + _eh(item.name) + '</div>'
+            + '<div class="od-cart-subprice">₹' + item.price.toLocaleString('en-IN') + '</div></div></div>'
+          + '<div class="od-qty-ctrl" style="justify-content:center">'
+            + '<button class="od-qty-btn" onclick="odQty('+idx+',-1)">−</button>'
+            + '<span class="od-qty-num">' + item.qty + '</span>'
+            + '<button class="od-qty-btn plus" onclick="odQty('+idx+',1)">+</button>'
+          + '</div>'
+          + '<div style="display:flex;align-items:center;justify-content:flex-end;gap:4px">'
+            + '<span class="od-cart-price">₹' + (item.price * item.qty).toLocaleString('en-IN') + '</span>'
+            + '<span class="od-cart-del" onclick="odQty('+idx+',-99)" title="Remove">'+_si(62)+'</span>'
+          + '</div>'
         + '</div>'
-        + '<div style="display:flex;align-items:center;justify-content:flex-end;gap:4px">'
-          + '<span class="od-cart-price">₹' + (item.price * item.qty).toLocaleString('en-IN') + '</span>'
-          + '<span class="od-cart-del" onclick="odQty('+idx+',-99)" title="Remove">'+_si(62)+'</span>'
-        + '</div>'
+        + instrRow
         + '</div>';
     });
     list.innerHTML = html;
@@ -15994,6 +16280,94 @@ function menuFilterByCategory(btn, cat){
   window.odQty = function(idx, delta){
     if(delta === -99){ _cart.splice(idx, 1); }
     else { _cart[idx].qty += delta; if(_cart[idx].qty <= 0) _cart.splice(idx, 1); }
+    _renderCart();
+  };
+
+  // ── Per-item Cooking Instruction Editor ──
+  window.odEditCookNote = function(idx) {
+    var item = _cart[idx];
+    if (!item) return;
+    var existing = document.getElementById('od-cook-note-popup');
+    if (existing) existing.remove();
+
+    var popup = document.createElement('div');
+    popup.id = 'od-cook-note-popup';
+    popup.style.cssText = 'position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;justify-content:center;padding-bottom:0';
+    popup.innerHTML =
+      '<div style="background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:480px;padding:20px 18px 28px;box-shadow:0 -8px 32px rgba(0,0,0,0.18)">'
+      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">'
+      +   '<span style="font-size:20px">📌</span>'
+      +   '<div>'
+      +     '<div style="font-size:13px;font-weight:800;color:#1a1a1a">Cooking Instruction</div>'
+      +     '<div style="font-size:11px;color:#aaa;margin-top:1px">' + _eh(item.name) + '</div>'
+      +   '</div>'
+      +   '<button onclick="document.getElementById(\'od-cook-note-popup\').remove()" style="margin-left:auto;width:30px;height:30px;border-radius:50%;border:1px solid #e0e0e0;background:#f5f5f5;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#888">×</button>'
+      + '</div>'
+      // Quick tags
+      + '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px" id="od-cnote-tags">'
+      + ['No spicy', 'Extra spicy', 'Less oil', 'No onion', 'No garlic', 'Extra crispy', 'Less salt', 'Well done', 'Half cook', 'Extra sauce'].map(function(tag){
+          return '<button onclick="odCookNoteTag(this,\'' + tag + '\')" style="padding:4px 10px;border-radius:20px;border:1.5px solid #e0e0e0;background:#f8f8f8;font-size:10px;font-weight:600;cursor:pointer;color:#555;transition:all 0.15s">' + tag + '</button>';
+        }).join('')
+      + '</div>'
+      + '<textarea id="od-cook-note-ta" rows="3" placeholder="e.g. No spicy, extra sauce, kam oil..." '
+      +   'style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:10px;font-size:13px;font-family:inherit;resize:none;outline:none;box-sizing:border-box;color:#1a1a1a">'
+      +   _eh(item.cookNote || '')
+      + '</textarea>'
+      + '<div style="display:flex;gap:8px;margin-top:12px">'
+      +   '<button onclick="odSaveCookNote(' + idx + ')" style="flex:1;padding:11px;background:#e67e22;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">✓ Save</button>'
+      +   (item.cookNote ? '<button onclick="odClearCookNote(' + idx + ')" style="padding:11px 14px;background:#fff0f0;border:1.5px solid #e74c3c;color:#e74c3c;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">✕ Clear</button>' : '')
+      + '</div>'
+      + '</div>';
+
+    document.body.appendChild(popup);
+    popup.addEventListener('click', function(e){ if(e.target === popup) popup.remove(); });
+
+    // Highlight existing tags
+    var ta = document.getElementById('od-cook-note-ta');
+    if (ta) {
+      ta.focus();
+      // highlight matching tags
+      var cur = item.cookNote || '';
+      popup.querySelectorAll('#od-cnote-tags button').forEach(function(b) {
+        if (cur.indexOf(b.textContent) !== -1) {
+          b.style.borderColor = '#e67e22';
+          b.style.background  = '#fff8f0';
+          b.style.color = '#e67e22';
+        }
+      });
+    }
+  };
+
+  window.odCookNoteTag = function(btn, tag) {
+    var ta = document.getElementById('od-cook-note-ta');
+    if (!ta) return;
+    var cur = ta.value.trim();
+    // Toggle: if already in, remove; else add
+    if (cur.indexOf(tag) !== -1) {
+      ta.value = cur.replace(tag, '').replace(/,\s*,/g,',').replace(/^,\s*/,'').replace(/,\s*$/,'').trim();
+      btn.style.borderColor = '#e0e0e0'; btn.style.background = '#f8f8f8'; btn.style.color = '#555';
+    } else {
+      ta.value = cur ? cur + ', ' + tag : tag;
+      btn.style.borderColor = '#e67e22'; btn.style.background = '#fff8f0'; btn.style.color = '#e67e22';
+    }
+    ta.focus();
+  };
+
+  window.odSaveCookNote = function(idx) {
+    var ta = document.getElementById('od-cook-note-ta');
+    if (!ta || !_cart[idx]) return;
+    _cart[idx].cookNote = ta.value.trim();
+    var popup = document.getElementById('od-cook-note-popup');
+    if (popup) popup.remove();
+    _renderCart();
+    if (window.showToast) showToast('📌 Instruction save ho gayi!', 'success');
+  };
+
+  window.odClearCookNote = function(idx) {
+    if (!_cart[idx]) return;
+    _cart[idx].cookNote = '';
+    var popup = document.getElementById('od-cook-note-popup');
+    if (popup) popup.remove();
     _renderCart();
   };
 
@@ -16075,7 +16449,7 @@ function menuFilterByCategory(btn, cat){
     var tot  = window._odPendingTot  || 0;
     var disc = window._odPendingDisc || 0;
     var cartItems = (window._odPendingCart || [..._cart]).map(function(c){
-      return { name: c.name, qty: c.qty, price: c.price, emoji: c.emoji || '' };
+      return { name: c.name, qty: c.qty, price: c.price, emoji: c.emoji || '', cookNote: c.cookNote || '' };
     });
     var cust = _getCustInfo ? _getCustInfo() : {};
 
@@ -18822,3 +19196,631 @@ function showCaptainCommand(navEl) {
 // =====================================================================
 // END CAPTAIN COMMAND
 // =====================================================================
+// ════════════════════════════════════════════════════════
+//  KOT — Kitchen Order Ticket  (Bluetooth Thermal Print)
+// ════════════════════════════════════════════════════════
+
+window.odPrintKOT = function() {
+  if (typeof _cart === 'undefined' || _cart.length === 0) {
+    if (window.showToast) showToast('Cart empty hai — pehle dishes add karo!', 'warning');
+    return;
+  }
+
+  var cust = (typeof _getCustInfo === 'function') ? _getCustInfo() : { hasData: false, name: '', phone: '' };
+  var note = (typeof _specialNote !== 'undefined' && _specialNote) ? _specialNote : '';
+  var now = new Date();
+  var timeStr = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+              + ', ' + now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  var kotNo = 'KOT-' + now.getHours() + '' + now.getMinutes() + '' + now.getSeconds();
+
+  // Get table number if set in order desk
+  var tableNo = (document.getElementById('od-table-select') || {}).value || '—';
+
+  // Build KOT preview HTML (dark modal preview)
+  var itemsPreview = _cart.map(function(c) {
+    var cookInstr = c.cookNote || c.cookInstruction || '';
+    return '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px dashed rgba(255,115,0,0.2)">'
+      + '<div style="flex:1">'
+      +   '<div style="font-family:var(--font-ui);font-size:13px;font-weight:700;color:rgba(245,240,232,0.92)">'
+      +     (c.emoji ? c.emoji + ' ' : '') + (c.name || '') + '</div>'
+      + (cookInstr ? '<div style="font-size:10px;color:#ff8c42;margin-top:3px;font-style:italic">📌 ' + cookInstr + '</div>' : '')
+      + '</div>'
+      + '<div style="font-family:var(--font-ui);font-size:16px;font-weight:800;color:#ff8c42;margin-left:12px;min-width:28px;text-align:right">×' + c.qty + '</div>'
+      + '</div>';
+  }).join('');
+
+  var custLine = cust.hasData
+    ? '<div style="background:rgba(255,115,0,0.1);border:1px solid rgba(255,115,0,0.25);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-family:var(--font-ui);font-size:11px;color:rgba(245,240,232,0.8)">'
+      + '👤 ' + (cust.name || '—') + (cust.phone ? '&nbsp;&nbsp;|&nbsp;&nbsp;📞 ' + cust.phone : '') + '</div>'
+    : '';
+
+  var tableLine = tableNo && tableNo !== '—'
+    ? '<div style="font-family:var(--font-ui);font-size:11px;color:rgba(245,240,232,0.55);margin-bottom:8px">🪑 Table: <b style="color:#ff8c42">' + tableNo + '</b></div>'
+    : '';
+
+  var noteLine = note
+    ? '<div style="margin-top:10px;padding:8px;background:rgba(255,230,0,0.06);border:1px solid rgba(255,230,0,0.15);border-radius:7px;font-family:var(--font-ui);font-size:11px;color:rgba(245,240,232,0.65)">📝 ' + note + '</div>'
+    : '';
+
+  var previewHtml = '<div style="font-family:var(--font-ui);font-size:10px;color:rgba(255,140,66,0.5);letter-spacing:2px;margin-bottom:4px">' + timeStr + '</div>'
+    + '<div style="font-family:var(--font-ui);font-size:11px;color:rgba(245,240,232,0.4);letter-spacing:1px;margin-bottom:14px"># ' + kotNo + '</div>'
+    + tableLine
+    + custLine
+    + '<div style="height:1px;background:linear-gradient(90deg,transparent,rgba(255,115,0,0.4),transparent);margin-bottom:12px"></div>'
+    + '<div style="font-family:var(--font-ui);font-size:10px;letter-spacing:2px;color:rgba(255,140,66,0.5);margin-bottom:8px">ITEMS / DISHES</div>'
+    + itemsPreview
+    + noteLine;
+
+  // Inject into modal
+  var preview = document.getElementById('kot-modal-preview');
+  if (preview) preview.innerHTML = previewHtml;
+
+  // Show modal
+  var modal = document.getElementById('kot-print-modal');
+  if (modal) { modal.style.display = 'flex'; }
+
+  // If BT already connected, show green
+  if (window._btDevice && window._btDevice.gatt && window._btDevice.gatt.connected) {
+    var dot = document.getElementById('kot-bt-dot');
+    var txt = document.getElementById('kot-bt-text');
+    if (dot) dot.style.background = '#2ecc71';
+    if (txt) txt.innerHTML = '✓ Connected: ' + (window._btDevice.name || 'Printer');
+  }
+
+  // Store KOT data for printing
+  window._kotData = { cart: _cart, cust: cust, note: note, tableNo: tableNo, kotNo: kotNo, timeStr: timeStr };
+};
+
+window.closeKotModal = function() {
+  var modal = document.getElementById('kot-print-modal');
+  if (modal) modal.style.display = 'none';
+};
+
+window.kotConnectBT = async function() {
+  try {
+    if (!navigator.bluetooth) {
+      if (window.showToast) showToast('Bluetooth Web API is apke browser mein supported nahi. Chrome use karo.', 'error');
+      return;
+    }
+    var device = await navigator.bluetooth.requestDevice({
+      filters: [
+        { services: ['000018f0-0000-1000-8000-00805f9b34fb'] },
+        { namePrefix: 'Printer' },
+        { namePrefix: 'BT' },
+        { namePrefix: 'RPP' },
+        { namePrefix: 'MTP' }
+      ],
+      optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', '00001101-0000-1000-8000-00805f9b34fb']
+    });
+    window._btDevice = device;
+    var server = await device.gatt.connect();
+    window._btServer = server;
+    var dot = document.getElementById('kot-bt-dot');
+    var txt = document.getElementById('kot-bt-text');
+    if (dot) dot.style.background = '#2ecc71';
+    if (txt) txt.innerHTML = '✓ Connected: ' + (device.name || 'Printer');
+    // also update bill modal BT status
+    var bdot = document.getElementById('bt-status-dot');
+    var btxt = document.getElementById('bt-status-text');
+    if (bdot) bdot.style.background = '#2ecc71';
+    if (btxt) btxt.innerHTML = '✓ Connected: ' + (device.name || 'Printer');
+    window._btDevice = device;
+    if (window.showToast) showToast('🖨️ Bluetooth Printer connected: ' + (device.name || 'Printer'), 'success');
+  } catch (e) {
+    var dot = document.getElementById('kot-bt-dot');
+    var txt = document.getElementById('kot-bt-text');
+    if (dot) dot.style.background = '#e74c3c';
+    if (txt) txt.textContent = 'Connect failed — ' + (e.message || 'Unknown error');
+    if (window.showToast) showToast('BT Connect failed: ' + (e.message || 'Unknown'), 'error');
+  }
+};
+
+window.kotBTPrint = async function() {
+  var d = window._kotData;
+  if (!d) { if (window.showToast) showToast('KOT data nahi mila!', 'error'); return; }
+
+  // ── Build ESC/POS thermal print bytes ──
+  function textToBytes(str) {
+    var bytes = [];
+    for (var i = 0; i < str.length; i++) {
+      var c = str.charCodeAt(i);
+      bytes.push(c < 128 ? c : 63); // '?' for non-ASCII
+    }
+    return bytes;
+  }
+  function line(txt) { return textToBytes(txt + '\n'); }
+  function divider() { return textToBytes('--------------------------------\n'); }
+  function bigText(txt) {
+    // ESC ! 0x30 = double width + height
+    return [0x1B, 0x21, 0x30].concat(textToBytes(txt)).concat([0x1B, 0x21, 0x00]);
+  }
+
+  var ESC_INIT   = [0x1B, 0x40];
+  var ESC_CENTER = [0x1B, 0x61, 0x01];
+  var ESC_LEFT   = [0x1B, 0x61, 0x00];
+  var ESC_BOLD_ON  = [0x1B, 0x45, 0x01];
+  var ESC_BOLD_OFF = [0x1B, 0x45, 0x00];
+  var ESC_FEED3  = [0x1B, 0x64, 0x03];
+  var ESC_CUT    = [0x1D, 0x56, 0x01]; // partial cut
+
+  var bytes = [];
+  bytes = bytes.concat(ESC_INIT);
+  bytes = bytes.concat(ESC_CENTER);
+  bytes = bytes.concat(bigText('KOT'));
+  bytes = bytes.concat(ESC_BOLD_ON);
+  bytes = bytes.concat(line('KITCHEN ORDER TICKET'));
+  bytes = bytes.concat(ESC_BOLD_OFF);
+  bytes = bytes.concat(line(''));
+  bytes = bytes.concat(line(d.timeStr));
+  bytes = bytes.concat(line('# ' + d.kotNo));
+  bytes = bytes.concat(divider());
+  bytes = bytes.concat(ESC_LEFT);
+
+  if (d.tableNo && d.tableNo !== '—') {
+    bytes = bytes.concat(ESC_BOLD_ON);
+    bytes = bytes.concat(line('TABLE : ' + d.tableNo));
+    bytes = bytes.concat(ESC_BOLD_OFF);
+  }
+  if (d.cust && d.cust.hasData) {
+    if (d.cust.name)  bytes = bytes.concat(line('NAME  : ' + d.cust.name));
+    if (d.cust.phone) bytes = bytes.concat(line('PHONE : ' + d.cust.phone));
+  }
+  bytes = bytes.concat(divider());
+  bytes = bytes.concat(ESC_BOLD_ON);
+  bytes = bytes.concat(line('ITEM                     QTY'));
+  bytes = bytes.concat(ESC_BOLD_OFF);
+  bytes = bytes.concat(divider());
+
+  d.cart.forEach(function(c) {
+    var name = (c.name || '').substring(0, 22);
+    var spaces = 22 - name.length;
+    var row = name + ' '.repeat(Math.max(1, spaces)) + '  x' + c.qty;
+    bytes = bytes.concat(line(row));
+    if (c.cookNote || c.cookInstruction) {
+      bytes = bytes.concat(line('  >> ' + (c.cookNote || c.cookInstruction)));
+    }
+  });
+
+  bytes = bytes.concat(divider());
+  if (d.note) {
+    bytes = bytes.concat(ESC_BOLD_ON);
+    bytes = bytes.concat(line('NOTE: ' + d.note));
+    bytes = bytes.concat(ESC_BOLD_OFF);
+  }
+  bytes = bytes.concat(line(''));
+  bytes = bytes.concat(ESC_CENTER);
+  bytes = bytes.concat(line('** CHEF KO DIKHAO **'));
+  bytes = bytes.concat(ESC_FEED3);
+  bytes = bytes.concat(ESC_CUT);
+
+  var uint8 = new Uint8Array(bytes);
+
+  // ── Try Bluetooth print ──
+  var btOk = false;
+  if (window._btDevice && window._btDevice.gatt && window._btDevice.gatt.connected) {
+    try {
+      var server = window._btServer || await window._btDevice.gatt.connect();
+      // Try common thermal printer service UUIDs
+      var serviceUUIDs = [
+        '000018f0-0000-1000-8000-00805f9b34fb',
+        '00001101-0000-1000-8000-00805f9b34fb',
+        'e7810a71-73ae-499d-8c15-faa9aef0c3f2'
+      ];
+      var charUUIDs = [
+        '00002af1-0000-1000-8000-00805f9b34fb',
+        'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f'
+      ];
+      var printChar = null;
+      for (var si = 0; si < serviceUUIDs.length && !printChar; si++) {
+        try {
+          var svc = await server.getPrimaryService(serviceUUIDs[si]);
+          for (var ci = 0; ci < charUUIDs.length && !printChar; ci++) {
+            try { printChar = await svc.getCharacteristic(charUUIDs[ci]); } catch(e){}
+          }
+          if (!printChar) {
+            // get all characteristics and pick writable one
+            var chars = await svc.getCharacteristics();
+            for (var ch of chars) {
+              if (ch.properties.write || ch.properties.writeWithoutResponse) {
+                printChar = ch; break;
+              }
+            }
+          }
+        } catch(e){}
+      }
+      if (printChar) {
+        // Send in chunks of 512 bytes
+        var chunkSize = 512;
+        for (var offset = 0; offset < uint8.length; offset += chunkSize) {
+          var chunk = uint8.slice(offset, offset + chunkSize);
+          if (printChar.properties.writeWithoutResponse) {
+            await printChar.writeValueWithoutResponse(chunk);
+          } else {
+            await printChar.writeValue(chunk);
+          }
+        }
+        btOk = true;
+        if (window.showToast) showToast('🖨️ KOT Bluetooth se print ho gaya!', 'success');
+      } else {
+        if (window.showToast) showToast('BT Printer characteristic nahi mila — Browser print fallback...', 'warning');
+      }
+    } catch(e) {
+      console.warn('KOT BT Print error:', e);
+      if (window.showToast) showToast('BT Print error: ' + (e.message || 'Unknown') + ' — Browser print use kar raha hai', 'warning');
+    }
+  }
+
+  // ── Fallback: browser print popup ──
+  if (!btOk) {
+    var RS = {
+      name:  (document.getElementById('s-name') || {}).value  || 'Siplora Restaurant',
+      addr:  (document.getElementById('s-addr') || {}).value  || '123 Royal Avenue, Pune',
+      phone: (document.getElementById('s-phone') || {}).value || '9021758399'
+    };
+    var itemsHtml = d.cart.map(function(c) {
+      var instr = c.cookNote || c.cookInstruction || '';
+      return '<tr>'
+        + '<td style="padding:6px 4px;font-size:14px;font-weight:700;color:#1a1a1a">'
+        +   (c.emoji ? c.emoji + ' ' : '') + (c.name || '') + (instr ? '<br><span style="font-size:11px;color:#e67e22;font-weight:400">📌 ' + instr + '</span>' : '')
+        + '</td>'
+        + '<td style="text-align:center;font-size:16px;font-weight:800;color:#e67e22;padding:6px 4px">×' + c.qty + '</td>'
+        + '</tr>';
+    }).join('');
+
+    var custBlock = (d.cust && d.cust.hasData)
+      ? '<div style="background:#fff8f0;border:1.5px solid #e67e22;border-radius:7px;padding:8px 10px;margin:10px 0;font-size:12px">'
+        + (d.cust.name  ? '<div><b>👤 Customer:</b> ' + d.cust.name  + '</div>' : '')
+        + (d.cust.phone ? '<div><b>📞 Phone:</b>    ' + d.cust.phone + '</div>' : '')
+        + '</div>' : '';
+
+    var tableBlock = (d.tableNo && d.tableNo !== '—')
+      ? '<div style="font-size:13px;margin-bottom:6px"><b>🪑 Table:</b> <span style="color:#e67e22;font-size:16px;font-weight:700">' + d.tableNo + '</span></div>'
+      : '';
+
+    var noteBlock = d.note
+      ? '<div style="margin-top:8px;padding:7px 9px;background:#fffde7;border:1px solid #ffe082;border-radius:6px;font-size:11px;color:#7d6000">📝 ' + d.note + '</div>'
+      : '';
+
+    var kotHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+      + '<title>KOT ' + d.kotNo + '</title>'
+      + '<style>'
+      + '*{margin:0;padding:0;box-sizing:border-box}'
+      + 'body{font-family:"Courier New",monospace;background:#fff;color:#1a1a1a;max-width:320px;margin:0 auto;padding:14px}'
+      + '.kot-title{text-align:center;font-size:22px;font-weight:900;letter-spacing:4px;color:#e67e22;margin-bottom:2px}'
+      + '.kot-sub{text-align:center;font-size:10px;color:#aaa;letter-spacing:2px;margin-bottom:10px}'
+      + '.kot-meta{font-size:10px;color:#999;text-align:center;margin-bottom:8px}'
+      + '.kot-no{text-align:center;font-size:13px;font-weight:800;color:#e67e22;letter-spacing:2px;margin-bottom:10px;border:2px dashed #e67e22;padding:4px 0;border-radius:4px}'
+      + 'hr{border:none;border-top:2px dashed #ddd;margin:8px 0}'
+      + 'table{width:100%;border-collapse:collapse}'
+      + 'th{font-size:10px;font-weight:700;text-transform:uppercase;color:#aaa;letter-spacing:1px;padding:4px 4px;border-bottom:2px solid #eee}'
+      + 'th:last-child{text-align:center}'
+      + '.chef-msg{text-align:center;font-size:12px;font-weight:700;color:#e67e22;margin-top:12px;letter-spacing:2px;padding:6px;border:1.5px dashed #e67e22;border-radius:5px}'
+      + '@media print{body{padding:4px}}'
+      + '</style></head><body>'
+      + '<div class="kot-title">KOT</div>'
+      + '<div class="kot-sub">KITCHEN ORDER TICKET</div>'
+      + '<div class="kot-sub">' + RS.name + '</div>'
+      + '<hr>'
+      + '<div class="kot-no"># ' + d.kotNo + '</div>'
+      + '<div class="kot-meta">' + d.timeStr + '</div>'
+      + '<hr>'
+      + tableBlock
+      + custBlock
+      + '<table><thead><tr><th style="text-align:left">Item / Dish</th><th>Qty</th></tr></thead><tbody>'
+      + itemsHtml
+      + '</tbody></table>'
+      + noteBlock
+      + '<hr>'
+      + '<div class="chef-msg">** CHEF KO DIKHAO **</div>'
+      + '</body></html>';
+
+    var win = window.open('', '_blank', 'width=380,height=580');
+    if (win) {
+      win.document.write(kotHtml);
+      win.document.close();
+      win.focus();
+      setTimeout(function() { win.print(); }, 400);
+    }
+    if (window.showToast) showToast('🖨️ KOT browser print ho raha hai...', 'info');
+  }
+
+  closeKotModal();
+};
+
+// ════════════════════════════════════════════════════════
+//  KDS — KOT Print Modal (Chef Panel se)
+// ════════════════════════════════════════════════════════
+
+window.kdsShowKOT = function(safeId) {
+  var o = (window._kdsOrders || {})[safeId];
+  if (!o) { if (window.showToast) showToast('Order data nahi mila!', 'error'); return; }
+
+  var items  = o.items || [];
+  var tNum   = o.tableNumber || o.table || null;
+  var note   = o.note || o.specialNote || '';
+  var cName  = o.customerName  || '';
+  var cPhone = o.customerPhone || '';
+  var orderNum = o.orderNumber || ('#' + String(o._id || '').slice(-6).toUpperCase());
+  var now    = new Date();
+  var timeStr = now.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'})
+              + ', ' + now.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit',hour12:true});
+
+  // Build items HTML for modal preview
+  var itemsPreview = items.map(function(it) {
+    var name  = it.name  || String(it);
+    var qty   = it.qty   || 1;
+    var emoji = it.emoji || '';
+    var cook  = it.cookNote || it.cookInstruction || it.instruction || it.customInstruction || it.customNote || '';
+    var spice = (it.spiceLevel && it.spiceLevel !== 'normal') ? it.spiceLevel : ((it.spice && it.spice !== 'normal') ? it.spice : '');
+    var spiceHtml = spice ? '<div style="font-size:10px;color:#e67e22;margin-top:2px">🌶️ Spice: ' + spice + '</div>' : '';
+    return '<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:9px 0;border-bottom:1px dashed rgba(255,115,0,0.18)">'
+      + '<div style="flex:1;min-width:0">'
+      +   '<div style="font-family:\'Poppins\',sans-serif;font-size:13px;font-weight:700;color:rgba(245,240,232,0.93)">'
+      +     (emoji ? emoji + ' ' : '') + name
+      +   '</div>'
+      +   spiceHtml
+      +   (cook ? '<div style="font-size:10px;color:#ff8c42;margin-top:3px;font-style:italic">📌 ' + cook + '</div>' : '')
+      + '</div>'
+      + '<div style="font-family:\'Poppins\',sans-serif;font-size:17px;font-weight:900;color:#ff8c42;margin-left:14px;min-width:32px;text-align:right">×' + qty + '</div>'
+      + '</div>';
+  }).join('');
+  if (!itemsPreview) itemsPreview = '<div style="color:rgba(245,240,232,0.4);font-size:12px;padding:10px 0">No items</div>';
+
+  var tableBlock = (tNum && tNum > 0)
+    ? '<div style="display:flex;align-items:center;gap:6px;background:rgba(255,115,0,0.1);border:1px solid rgba(255,115,0,0.3);border-radius:8px;padding:7px 11px;margin-bottom:10px;font-family:\'Poppins\',sans-serif">'
+      + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ff8c42" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>'
+      + '<span style="font-size:11px;color:rgba(245,240,232,0.6)">Table</span>'
+      + '<span style="font-size:15px;font-weight:800;color:#ff8c42;margin-left:4px">' + tNum + '</span>'
+      + '</div>'
+    : '<div style="display:flex;align-items:center;gap:6px;background:rgba(100,100,120,0.12);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:7px 11px;margin-bottom:10px;font-family:\'Poppins\',sans-serif">'
+      + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>'
+      + '<span style="font-size:12px;color:rgba(245,240,232,0.5)">Counter / Takeaway</span>'
+      + '</div>';
+
+  var custBlock = (cName || cPhone)
+    ? '<div style="background:rgba(39,174,96,0.08);border:1px solid rgba(39,174,96,0.25);border-radius:8px;padding:8px 11px;margin-bottom:10px;font-family:\'Poppins\',sans-serif;font-size:11px;color:rgba(245,240,232,0.75)">'
+      + (cName  ? '<div>👤 <b>' + cName  + '</b></div>' : '')
+      + (cPhone ? '<div style="margin-top:2px">📞 ' + cPhone + '</div>' : '')
+      + '</div>'
+    : '';
+
+  var noteBlock = note
+    ? '<div style="margin-top:10px;padding:8px 11px;background:rgba(255,230,0,0.06);border:1px solid rgba(255,230,0,0.18);border-radius:7px;font-family:\'Poppins\',sans-serif;font-size:11px;color:rgba(245,240,232,0.65)">📝 ' + note + '</div>'
+    : '';
+
+  var modalHtml = '<div id="kds-kot-overlay" style="position:fixed;inset:0;z-index:99998;background:rgba(5,3,15,0.93);backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:center">'
+    + '<div style="background:linear-gradient(145deg,rgba(14,10,28,0.99),rgba(8,5,18,0.99));border:1.5px solid rgba(255,115,0,0.4);border-radius:20px;width:95%;max-width:430px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 0 60px rgba(255,115,0,0.15),0 24px 80px rgba(0,0,0,0.85)">'
+
+    // ── Header ──
+    + '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,115,0,0.15)">'
+    +   '<div>'
+    +     '<div style="font-size:17px;font-weight:800;color:#ff8c42;letter-spacing:1.5px;font-family:\'Poppins\',sans-serif">'
+    +       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;margin-right:7px"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>'
+    +       'Kitchen Order Ticket'
+    +     '</div>'
+    +     '<div style="font-size:9px;color:rgba(255,140,66,0.4);letter-spacing:2px;margin-top:2px;font-family:\'Poppins\',sans-serif">' + orderNum + ' · ' + timeStr + '</div>'
+    +   '</div>'
+    +   '<button onclick="document.getElementById(\'kds-kot-overlay\').remove()" style="width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:rgba(245,240,232,0.5);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">×</button>'
+    + '</div>'
+
+    // ── Body ──
+    + '<div style="flex:1;overflow-y:auto;padding:16px 20px;scrollbar-width:thin;scrollbar-color:rgba(255,115,0,0.2) transparent">'
+    +   tableBlock
+    +   custBlock
+    +   '<div style="height:1px;background:linear-gradient(90deg,transparent,rgba(255,115,0,0.4),transparent);margin:4px 0 12px"></div>'
+    +   '<div style="font-size:9px;letter-spacing:2px;color:rgba(255,140,66,0.45);font-family:\'Poppins\',sans-serif;margin-bottom:8px">ITEMS / DISHES</div>'
+    +   itemsPreview
+    +   noteBlock
+    + '</div>'
+
+    // ── Bluetooth Status Bar ──
+    + '<div style="margin:0 20px 6px;padding:8px 12px;background:rgba(255,115,0,0.06);border:1px solid rgba(255,115,0,0.18);border-radius:8px;display:flex;align-items:center;gap:8px;font-family:\'Poppins\',sans-serif;font-size:10px;color:rgba(245,240,232,0.55)">'
+    +   '<span id="kds-bt-dot" style="width:8px;height:8px;border-radius:50%;background:'
+    +   ((window._btDevice && window._btDevice.gatt && window._btDevice.gatt.connected) ? '#2ecc71' : '#666')
+    +   ';flex-shrink:0"></span>'
+    +   '<span id="kds-bt-text">'
+    +   ((window._btDevice && window._btDevice.gatt && window._btDevice.gatt.connected) ? ('✓ Connected: ' + (window._btDevice.name || 'Printer')) : 'Bluetooth printer not connected')
+    +   '</span>'
+    +   '<button onclick="kdsConnectBT()" style="margin-left:auto;font-size:9px;padding:4px 10px;background:rgba(255,115,0,0.14);border:1px solid rgba(255,115,0,0.3);border-radius:6px;color:#ff8c42;cursor:pointer;font-family:\'Poppins\',sans-serif">🔗 Connect BT</button>'
+    + '</div>'
+
+    // ── Buttons ──
+    + '<div style="display:flex;gap:10px;padding:10px 20px 18px">'
+    +   '<button onclick="kdsPrintKOT(\'' + safeId + '\')" style="flex:1;padding:12px;background:linear-gradient(135deg,rgba(255,115,0,0.85),rgba(210,70,0,0.9));border:none;border-radius:10px;color:#fff;font-family:\'Poppins\',sans-serif;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:0.5px;display:flex;align-items:center;justify-content:center;gap:7px">'
+    +     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>'
+    +     'Print KOT'
+    +   '</button>'
+    +   '<button onclick="document.getElementById(\'kds-kot-overlay\').remove()" style="padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:rgba(245,240,232,0.55);font-family:\'Poppins\',sans-serif;font-size:12px;cursor:pointer">Close</button>'
+    + '</div>'
+    + '</div></div>';
+
+  var existing = document.getElementById('kds-kot-overlay');
+  if (existing) existing.remove();
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+window.kdsConnectBT = async function() {
+  try {
+    if (!navigator.bluetooth) {
+      if (window.showToast) showToast('Web Bluetooth supported nahi — Chrome use karo!', 'error');
+      return;
+    }
+    var device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [
+        '000018f0-0000-1000-8000-00805f9b34fb',
+        '00001101-0000-1000-8000-00805f9b34fb',
+        'e7810a71-73ae-499d-8c15-faa9aef0c3f2'
+      ]
+    });
+    window._btDevice = device;
+    window._btServer = await device.gatt.connect();
+    var dot = document.getElementById('kds-bt-dot');
+    var txt = document.getElementById('kds-bt-text');
+    if (dot) dot.style.background = '#2ecc71';
+    if (txt) txt.textContent = '✓ Connected: ' + (device.name || 'Printer');
+    if (window.showToast) showToast('🖨️ BT Printer connected: ' + (device.name || 'Printer'), 'success');
+  } catch(e) {
+    var dot = document.getElementById('kds-bt-dot');
+    var txt = document.getElementById('kds-bt-text');
+    if (dot) dot.style.background = '#e74c3c';
+    if (txt) txt.textContent = 'Connect failed';
+    if (window.showToast) showToast('BT Connect failed: ' + (e.message || 'Unknown'), 'error');
+  }
+};
+
+window.kdsPrintKOT = async function(safeId) {
+  var o = (window._kdsOrders || {})[safeId];
+  if (!o) { if (window.showToast) showToast('Order nahi mila!', 'error'); return; }
+
+  var items  = o.items || [];
+  var tNum   = o.tableNumber || o.table || null;
+  var note   = o.note || o.specialNote || '';
+  var cName  = o.customerName  || '';
+  var cPhone = o.customerPhone || '';
+  var orderNum = o.orderNumber || ('#' + String(o._id || '').slice(-6).toUpperCase());
+  var now    = new Date();
+  var timeStr = now.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'})
+              + ', ' + now.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit',hour12:true});
+
+  // ── ESC/POS bytes helper ──
+  function tb(str) {
+    var b = [];
+    for (var i = 0; i < str.length; i++) { var c = str.charCodeAt(i); b.push(c < 128 ? c : 63); }
+    return b;
+  }
+  function ln(txt) { return tb(txt + '\n'); }
+  function div()   { return tb('--------------------------------\n'); }
+  function bigLine(txt) { return [0x1B,0x21,0x30].concat(tb(txt)).concat([0x1B,0x21,0x00,0x0A]); }
+
+  var ESC_INIT    = [0x1B,0x40];
+  var ESC_CENTER  = [0x1B,0x61,0x01];
+  var ESC_LEFT    = [0x1B,0x61,0x00];
+  var BOLD_ON     = [0x1B,0x45,0x01];
+  var BOLD_OFF    = [0x1B,0x45,0x00];
+  var FEED3       = [0x1B,0x64,0x03];
+  var PARTIAL_CUT = [0x1D,0x56,0x01];
+
+  var bytes = [].concat(ESC_INIT, ESC_CENTER);
+  bytes = bytes.concat(bigLine('KOT'));
+  bytes = bytes.concat(BOLD_ON, ln('KITCHEN ORDER TICKET'), BOLD_OFF);
+  bytes = bytes.concat(ln(timeStr));
+  bytes = bytes.concat(ln('# ' + orderNum));
+  bytes = bytes.concat(div(), ESC_LEFT);
+
+  if (tNum && tNum > 0) {
+    bytes = bytes.concat(BOLD_ON, ln('TABLE  : ' + tNum), BOLD_OFF);
+  } else {
+    bytes = bytes.concat(ln('SOURCE : Counter / Takeaway'));
+  }
+  if (cName)  bytes = bytes.concat(ln('NAME   : ' + cName));
+  if (cPhone) bytes = bytes.concat(ln('PHONE  : ' + cPhone));
+
+  bytes = bytes.concat(div(), BOLD_ON, ln('ITEM                      QTY'), BOLD_OFF, div());
+
+  items.forEach(function(it) {
+    var name = (it.name || String(it)).substring(0, 22);
+    var qty  = it.qty || 1;
+    var pad  = 22 - name.length;
+    bytes = bytes.concat(ln(name + ' '.repeat(Math.max(1, pad)) + ' x' + qty));
+    var cook = it.cookNote || it.cookInstruction || it.instruction || it.customInstruction || it.customNote || '';
+    var spice = (it.spiceLevel && it.spiceLevel !== 'normal') ? it.spiceLevel : ((it.spice && it.spice !== 'normal') ? it.spice : '');
+    if (spice) bytes = bytes.concat(ln('  >> Spice: ' + spice.substring(0, 24)));
+    if (cook) bytes = bytes.concat(ln('  >> ' + cook.substring(0, 28)));
+  });
+
+  bytes = bytes.concat(div());
+  if (note) bytes = bytes.concat(BOLD_ON, ln('NOTE: ' + note), BOLD_OFF);
+  bytes = bytes.concat(ESC_CENTER, ln(''), ln('** CHEF KO DIKHAO **'), FEED3, PARTIAL_CUT);
+
+  var uint8 = new Uint8Array(bytes);
+  var btOk  = false;
+
+  // ── Try BT Print ──
+  if (window._btDevice && window._btDevice.gatt && window._btDevice.gatt.connected) {
+    try {
+      var server = window._btServer || await window._btDevice.gatt.connect();
+      var svcUUIDs = ['000018f0-0000-1000-8000-00805f9b34fb','e7810a71-73ae-499d-8c15-faa9aef0c3f2','00001101-0000-1000-8000-00805f9b34fb'];
+      var charUUIDs = ['00002af1-0000-1000-8000-00805f9b34fb','bef8d6c9-9c21-4c9e-b632-bd58c1009f9f'];
+      var pChar = null;
+      for (var si = 0; si < svcUUIDs.length && !pChar; si++) {
+        try {
+          var svc = await server.getPrimaryService(svcUUIDs[si]);
+          for (var ci = 0; ci < charUUIDs.length && !pChar; ci++) {
+            try { pChar = await svc.getCharacteristic(charUUIDs[ci]); } catch(e){}
+          }
+          if (!pChar) {
+            var chars = await svc.getCharacteristics();
+            for (var ch of chars) {
+              if (ch.properties.write || ch.properties.writeWithoutResponse) { pChar = ch; break; }
+            }
+          }
+        } catch(e){}
+      }
+      if (pChar) {
+        var cs = 512;
+        for (var off = 0; off < uint8.length; off += cs) {
+          var chunk = uint8.slice(off, off + cs);
+          if (pChar.properties.writeWithoutResponse) await pChar.writeValueWithoutResponse(chunk);
+          else await pChar.writeValue(chunk);
+        }
+        btOk = true;
+        if (window.showToast) showToast('🖨️ KOT Bluetooth se print ho gaya!', 'success');
+      }
+    } catch(e) {
+      console.warn('KDS BT print error:', e);
+    }
+  }
+
+  // ── Fallback: browser print ──
+  if (!btOk) {
+    var RS = { name: (document.getElementById('s-name')||{}).value||'Siplora Restaurant', addr:(document.getElementById('s-addr')||{}).value||'', phone:(document.getElementById('s-phone')||{}).value||'' };
+    var rowsHtml = items.map(function(it){
+      var nm = it.name || String(it), qty = it.qty||1, emoji = it.emoji||'';
+      var cook = it.cookNote || it.cookInstruction || it.instruction || it.customInstruction || it.customNote || '';
+      var spice = (it.spiceLevel && it.spiceLevel !== 'normal') ? it.spiceLevel : ((it.spice && it.spice !== 'normal') ? it.spice : '');
+      return '<tr>'
+        + '<td style="padding:6px 4px;font-size:14px;font-weight:700;color:#1a1a1a">' + (emoji?emoji+' ':'') + nm
+        + (spice ? '<br><span style="font-size:11px;color:#e67e22;font-weight:400">🌶️ Spice: '+spice+'</span>' : '')
+        + (cook ? '<br><span style="font-size:11px;color:#e67e22;font-weight:400">📌 '+cook+'</span>' : '') + '</td>'
+        + '<td style="text-align:center;font-size:17px;font-weight:900;color:#e67e22;padding:6px 4px">×'+qty+'</td>'
+        + '</tr>';
+    }).join('');
+
+    var tableHtml = (tNum && tNum>0)
+      ? '<div style="background:#fff8f0;border:2px solid #e67e22;border-radius:7px;padding:8px 12px;margin:8px 0;text-align:center"><span style="font-size:11px;color:#aaa">TABLE</span><div style="font-size:28px;font-weight:900;color:#e67e22;line-height:1">'+tNum+'</div></div>'
+      : '<div style="font-size:12px;color:#aaa;margin:6px 0;text-align:center">Counter / Takeaway</div>';
+
+    var custHtml2 = (cName||cPhone)
+      ? '<div style="background:#f0fff4;border:1px solid #c3e6cb;border-radius:6px;padding:7px 10px;margin:8px 0;font-size:12px">'
+        + (cName?'<div>👤 <b>'+cName+'</b></div>':'')+(cPhone?'<div style="margin-top:2px">📞 '+cPhone+'</div>':'') + '</div>' : '';
+
+    var noteHtml2 = note ? '<div style="margin-top:8px;padding:7px;background:#fffde7;border:1px solid #ffe082;border-radius:5px;font-size:11px;color:#7d6000">📝 '+note+'</div>' : '';
+
+    var kotHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>KOT '+orderNum+'</title>'
+      + '<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Courier New",monospace;background:#fff;color:#1a1a1a;max-width:320px;margin:0 auto;padding:14px}'
+      + '.t{text-align:center}.bld{font-weight:700}.or{color:#e67e22}'
+      + 'table{width:100%;border-collapse:collapse}th{font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:1px;padding:4px;border-bottom:2px solid #eee}th:last-child{text-align:center}'
+      + 'hr{border:none;border-top:2px dashed #ddd;margin:8px 0}'
+      + '.chef{text-align:center;font-size:12px;font-weight:700;color:#e67e22;margin-top:12px;padding:6px;border:1.5px dashed #e67e22;border-radius:5px;letter-spacing:2px}'
+      + '@media print{body{padding:4px}}</style></head><body>'
+      + '<div class="t" style="font-size:26px;font-weight:900;letter-spacing:5px;color:#e67e22">KOT</div>'
+      + '<div class="t" style="font-size:10px;color:#aaa;letter-spacing:2px;margin-bottom:6px">KITCHEN ORDER TICKET</div>'
+      + '<div class="t" style="font-size:11px;font-weight:700;margin-bottom:2px">' + RS.name + '</div>'
+      + '<hr>'
+      + '<div class="t" style="font-size:13px;font-weight:800;color:#e67e22;border:2px dashed #e67e22;border-radius:4px;padding:4px;margin-bottom:6px"># ' + orderNum + '</div>'
+      + '<div class="t" style="font-size:10px;color:#999;margin-bottom:8px">' + timeStr + '</div>'
+      + tableHtml + custHtml2 + '<hr>'
+      + '<table><thead><tr><th style="text-align:left">Item / Dish</th><th>Qty</th></tr></thead><tbody>'
+      + rowsHtml + '</tbody></table>'
+      + noteHtml2 + '<hr>'
+      + '<div class="chef">** CHEF KO DIKHAO **</div>'
+      + '</body></html>';
+
+    var win = window.open('', '_blank', 'width=380,height=600');
+    if (win) { win.document.write(kotHtml); win.document.close(); win.focus(); setTimeout(function(){ win.print(); }, 400); }
+    if (window.showToast) showToast('🖨️ KOT browser print ho raha hai...', 'info');
+  }
+
+  document.getElementById('kds-kot-overlay') && document.getElementById('kds-kot-overlay').remove();
+};

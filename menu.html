@@ -2651,8 +2651,20 @@ main{padding-bottom:96px;margin:0;padding-top:0;}
 
 <!-- ORDERS FULL PANEL -->
 <div id="ordersFullPanel" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:300;overflow-y:auto;padding-bottom:80px;">
-  <div style="position:sticky;top:0;z-index:10;background:rgba(10,10,15,0.95);-webkit-backdrop-filter:none;backdrop-filter:none;border-bottom:1px solid var(--border);padding:16px 20px;display:flex;align-items:center;gap:12px;">
-    <div style="flex:1;font-family:var(--font-circular);font-size:20px;font-weight:800;background:linear-gradient(135deg,#F97316,#EAB308);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">🛒 My Orders</div>
+  <div style="position:sticky;top:0;z-index:10;background:rgba(10,10,15,0.95);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:12px;">
+    <button onclick="goBackHome()" style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,rgba(249,115,22,0.18),rgba(234,179,8,0.10));border:1.5px solid rgba(249,115,22,0.35);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all 0.2s;box-shadow:0 2px 12px rgba(249,115,22,0.18);" onmousedown="this.style.transform='scale(0.92)'" onmouseup="this.style.transform='scale(1)'" ontouchstart="this.style.transform='scale(0.92)'" ontouchend="this.style.transform='scale(1)'">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M19 12H5" stroke="url(#arrowGradO)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 19l-7-7 7-7" stroke="url(#arrowGradO)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <defs>
+          <linearGradient id="arrowGradO" x1="5" y1="12" x2="19" y2="12" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#F97316"/>
+            <stop offset="100%" stop-color="#EAB308"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </button>
+    <div style="flex:1;font-family:var(--font-circular);font-size:20px;font-weight:800;background:linear-gradient(135deg,#F97316,#EAB308);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">&#x1F6D2; My Orders</div>
   </div>
   <div style="padding:20px 16px;display:flex;flex-direction:column;gap:14px;" id="ordersPanelContent">
     <!-- filled by renderOrdersPanel() -->
@@ -4958,6 +4970,8 @@ function goBackHome() {
   if(offersPanel) offersPanel.style.display='none';
   const trPanel = document.getElementById('tableReservationPanel');
   if(trPanel) trPanel.style.display='none';
+  const ordersPanel = document.getElementById('ordersFullPanel');
+  if(ordersPanel) ordersPanel.style.display='none';
   // Reset nav to home
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   const homeNav = document.querySelector('.nav-item');
