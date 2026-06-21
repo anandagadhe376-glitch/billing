@@ -12508,3 +12508,138 @@ console.log('✅ Siplora Chef — Gemini AI + Billing Sync ACTIVE! | Firebase: r
   }, 1000); // har 1 second
 })();
 // ══════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════
+// 👨‍🍳 CHEF LOGIN — Email + Password (owner billing panel se set hota hai)
+// Verifies against Firestore 'cc_chefs' collection (same Firebase project)
+// ═══════════════════════════════════════════════════════════════════
+window._chefLoggedIn = false;
+window._chefLoggedInData = null;
+
+function clTogglePwdVis() {
+  var inp = document.getElementById('cl-password');
+  if (!inp) return;
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+// Firestore se baar baar 'cc_chefs' fetch karne ki jagah, ek waitForDb helper —
+// initChefFirebase() already window.__chefDb set kar raha hai background mein
+function _clWaitForDb(maxWaitMs) {
+  return new Promise(function(resolve) {
+    var waited = 0;
+    var iv = setInterval(function() {
+      if (window.__chefDb) { clearInterval(iv); resolve(window.__chefDb); return; }
+      waited += 150;
+      if (waited >= maxWaitMs) { clearInterval(iv); resolve(null); }
+    }, 150);
+  });
+}
+
+async function _clFetchChefs() {
+  // Pehle cached localStorage se try karo (instant fallback agar Firestore slow ho)
+  var cached = [];
+  try { cached = JSON.parse(localStorage.getItem('cc_chefs') || '[]'); } catch(e) {}
+
+  var db = window.__chefDb || await _clWaitForDb(6000);
+  if (!db) return cached;
+
+  try {
+    const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+    const snap = await getDocs(collection(db, 'cc_chefs'));
+    var arr = [];
+    snap.forEach(function(d) { arr.push(Object.assign({ id: d.id }, d.data())); });
+    try { localStorage.setItem('cc_chefs', JSON.stringify(arr)); } catch(e) {}
+    return arr.length ? arr : cached;
+  } catch (e) {
+    console.warn('[ChefLogin] Firestore fetch failed, using cached list:', e.message);
+    return cached;
+  }
+}
+
+async function chefLogin() {
+  var emailEl = document.getElementById('cl-email');
+  var pwEl = document.getElementById('cl-password');
+  var errEl = document.getElementById('cl-error');
+  var btnEl = document.getElementById('cl-login-btn');
+  var boxEl = document.querySelector('.cl-box');
+  if (errEl) errEl.textContent = '';
+
+  var email = (emailEl && emailEl.value || '').trim();
+  var password = (pwEl && pwEl.value || '').trim();
+
+  if (!email || !password) {
+    if (errEl) errEl.textContent = '❌ Email aur Password daalo';
+    return;
+  }
+
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = 'CHECKING...'; }
+
+  var chefs = await _clFetchChefs();
+
+  if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'LOGIN'; }
+
+  var match = chefs.find(function(c) {
+    return c.email && c.password &&
+      c.email.toLowerCase() === email.toLowerCase() &&
+      c.password === password &&
+      c.status !== 'inactive';
+  });
+
+  if (match) {
+    window._chefLoggedIn = true;
+    window._chefLoggedInData = match;
+    try { sessionStorage.setItem('chef_session', JSON.stringify({ id: match.id, name: match.name, email: match.email })); } catch(e) {}
+    var loginScreen = document.getElementById('chefLoginScreen');
+    if (loginScreen) {
+      loginScreen.classList.add('hide');
+      setTimeout(function() { loginScreen.style.display = 'none'; }, 520);
+    }
+    // Sidebar profile name update karo agar match mile
+    var nameEl = document.querySelector('.sb-profile-name');
+    if (nameEl && match.name) nameEl.textContent = match.name;
+    if (typeof showToast === 'function') showToast('✅ Welcome ' + (match.name || 'Chef') + '!', 'var(--accent)');
+  } else {
+    if (errEl) errEl.textContent = '❌ Galat Email ya Password — dobara try karo';
+    if (boxEl) {
+      boxEl.classList.add('cl-shake');
+      setTimeout(function() { boxEl.classList.remove('cl-shake'); }, 420);
+    }
+  }
+}
+
+// ── Page load par: agar same-browser session pehle se valid hai to skip karo ──
+// (Optional convenience — tab refresh karne par baar baar login na maangna pade)
+document.addEventListener('DOMContentLoaded', function() {
+  try {
+    var sess = JSON.parse(sessionStorage.getItem('chef_session') || 'null');
+    if (sess && sess.email) {
+      window._chefLoggedIn = true;
+      window._chefLoggedInData = sess;
+      setTimeout(function() {
+        var loginScreen = document.getElementById('chefLoginScreen');
+        if (loginScreen) {
+          loginScreen.classList.add('hide');
+          setTimeout(function() { loginScreen.style.display = 'none'; }, 520);
+        }
+        var nameEl = document.querySelector('.sb-profile-name');
+        if (nameEl && sess.name) nameEl.textContent = sess.name;
+      }, 600); // splash khatam hone ka wait
+    }
+  } catch(e) {}
+});
+
+// ── Logout helper (chahe to sidebar profile par bind kar sakte ho) ──
+function chefLogout() {
+  try { sessionStorage.removeItem('chef_session'); } catch(e) {}
+  window._chefLoggedIn = false;
+  window._chefLoggedInData = null;
+  var loginScreen = document.getElementById('chefLoginScreen');
+  if (loginScreen) {
+    loginScreen.style.display = 'flex';
+    loginScreen.classList.remove('hide');
+  }
+  var emailEl = document.getElementById('cl-email');
+  var pwEl = document.getElementById('cl-password');
+  if (emailEl) emailEl.value = '';
+  if (pwEl) pwEl.value = '';
+}

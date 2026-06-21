@@ -1,3 +1,14 @@
+// ── MULTI-RESTAURANT FIX: generic helper for raw localStorage keys
+// (lum_orders, lum_paid_tables, smStaff, cc_*, es_*, sip_coupons, etc.)
+// Defined at the very top of the file so it's always available no matter
+// where/when it gets called. Suffixes every key with the current
+// restaurant ID (set by Auth-guard.js as window._sip_restaurantId) so
+// two restaurants on the same browser never share the same cached data.
+window._sipKey = function(rawKey){
+  var rid = window._sip_restaurantId || 'norestaurant';
+  return rawKey + '_' + rid;
+};
+
 const __SVG_ICONS__ = {
   '0': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0" ><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
   '1': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0" ><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
@@ -384,12 +395,12 @@ async function callGemini(systemPrompt, userMessage) {
 
 window.getLiveRestaurantData = function() {
   try {
-    const orders    = (window.getLiveOrders    ? window.getLiveOrders()    : null) || (()=>{try{return JSON.parse(localStorage.getItem('lum_orders')||'[]');}catch(e){return[];}})();
-    const menu      = (()=>{try{return JSON.parse(localStorage.getItem('lum_menu')||'[]');}catch(e){return[];}})();
-    const stock     = (window.getLiveStock     ? window.getLiveStock()     : null) || (()=>{try{return JSON.parse(localStorage.getItem('lum_stock')||'[]');}catch(e){return[];}})();
-    const customers = (window.getLiveCustomers ? window.getLiveCustomers() : null) || (()=>{try{return JSON.parse(localStorage.getItem('lum_customers')||'[]');}catch(e){return[];}})();
-    const tasks     = (()=>{try{return JSON.parse(localStorage.getItem('lum_tasks')||'[]');}catch(e){return[];}})();
-    const staff     = (window.getLiveStaff     ? window.getLiveStaff()     : null) || (()=>{try{return JSON.parse(localStorage.getItem('smStaff')||'[]');}catch(e){return[];}})();
+    const orders    = (window.getLiveOrders    ? window.getLiveOrders()    : null) || (()=>{try{return JSON.parse(localStorage.getItem(window._sipKey('lum_orders'))||'[]');}catch(e){return[];}})();
+    const menu      = (()=>{try{return JSON.parse(localStorage.getItem(window._sipKey('lum_menu'))||'[]');}catch(e){return[];}})();
+    const stock     = (window.getLiveStock     ? window.getLiveStock()     : null) || (()=>{try{return JSON.parse(localStorage.getItem(window._sipKey('lum_stock'))||'[]');}catch(e){return[];}})();
+    const customers = (window.getLiveCustomers ? window.getLiveCustomers() : null) || (()=>{try{return JSON.parse(localStorage.getItem(window._sipKey('lum_customers'))||'[]');}catch(e){return[];}})();
+    const tasks     = (()=>{try{return JSON.parse(localStorage.getItem(window._sipKey('lum_tasks'))||'[]');}catch(e){return[];}})();
+    const staff     = (window.getLiveStaff     ? window.getLiveStaff()     : null) || (()=>{try{return JSON.parse(localStorage.getItem(window._sipKey('smStaff'))||'[]');}catch(e){return[];}})();
     const today     = new Date().toDateString();
     const todayOrders  = orders.filter(o => {
       const t=o.createdAt||o.timestamp||o.time||o.date;
@@ -504,6 +515,45 @@ console.log("[icon] Siplora AI System — Gemini REST API Active!");
 
 window.__fbLoaded = null;
 
+// ═══════════════════════════════════════════════════════════════
+//  _sipCol — Restaurant-Scoped Collection Helper
+//  Ye function automatically restaurant ke liye FILTERED query/collection
+//  return karta hai — koi bhi cross-restaurant data access nahi
+//
+//  ⚠️ IMPORTANT: Is database me data SUBCOLLECTION me nahi, balki
+//  ROOT-LEVEL collections me hai (orders/{id}, customers/{id}, etc.)
+//  jisme har document ke andar ek "restaurantId" FIELD hota hai.
+//  Isliye _sipCol() ab root collection + where(restaurantId==rid)
+//  query banata hai — subcollection path nahi.
+//
+//  Usage: getDocs(_sipCol(db, 'orders'))
+//  Result: query(collection(db,'orders'), where('restaurantId','==',rid))
+// ═══════════════════════════════════════════════════════════════
+window._sipCol = function(db, colName) {
+  var rid = window._sip_restaurantId;
+  if (rid && window.__col && window.__query && window.__where) {
+    return window.__query(window.__col(db, colName), window.__where('restaurantId', '==', rid));
+  }
+  // Fallback — nahi hona chahiye production mein
+  return window.__col(db, colName);
+};
+
+// Specific document ko reference karne ke liye (update/delete/setDoc).
+// Documents root collection me hi hain (orders/{docId}), isliye
+// seedha root path use karo — subcollection nahi.
+window._sipDoc = function(db, colName, docId) {
+  return window.__doc(db, colName, docId);
+};
+
+// Naya document banate waqt (addDoc) restaurantId field automatically
+// inject karta hai, taaki naya data bhi hamesha sahi se tag ho.
+// Usage: window._sipAddDoc(window.__db, 'orders', orderData)
+window._sipAddDoc = function(db, colName, data) {
+  var rid = window._sip_restaurantId || 'norestaurant';
+  var taggedData = Object.assign({}, data, { restaurantId: rid });
+  return window.__addDoc(window.__col(db, colName), taggedData);
+};
+
 window._siploraFirebaseLoad = async function() {
   if (window.__fbLoaded) return window.__fbLoaded;
   window.__fbLoaded = (async () => {
@@ -516,8 +566,8 @@ window._siploraFirebaseLoad = async function() {
           setTimeout(() => reject(new Error('Firebase modules timeout')), 10000);
         });
       }
-      const { initializeApp, getApps, getFirestore, collection, doc, addDoc, updateDoc, setDoc, deleteDoc, getDocs, onSnapshot, query, orderBy, writeBatch, serverTimestamp, getStorage, ref, uploadBytes, getDownloadURL } = window.__firebaseModules;
-      const fbMod = { getFirestore, collection, doc, addDoc, updateDoc, setDoc, deleteDoc, getDocs, onSnapshot, query, orderBy, writeBatch, serverTimestamp, getStorage, ref, uploadBytes, getDownloadURL };
+      const { initializeApp, getApps, getFirestore, collection, doc, addDoc, updateDoc, setDoc, deleteDoc, getDocs, onSnapshot, query, where, orderBy, writeBatch, serverTimestamp, getStorage, ref, uploadBytes, getDownloadURL } = window.__firebaseModules;
+      const fbMod = { getFirestore, collection, doc, addDoc, updateDoc, setDoc, deleteDoc, getDocs, onSnapshot, query, where, orderBy, writeBatch, serverTimestamp, getStorage, ref, uploadBytes, getDownloadURL };
       const FB_CFG = {
         apiKey:"AIzaSyBsRxWD2R1GkSEM-duLwQe3jAi7yw5vvvM",
         authDomain:"restaurant-system-beec1.firebaseapp.com",
@@ -546,6 +596,7 @@ window._siploraFirebaseLoad = async function() {
       window.__getDocs = fbMod.getDocs;
       window.__onSnapshot = fbMod.onSnapshot;
       window.__query = fbMod.query;
+      window.__where = fbMod.where;
       window.__orderBy = fbMod.orderBy;
       window.__serverTimestamp = fbMod.serverTimestamp;
       window.__writeBatch = fbMod.writeBatch;
@@ -1105,7 +1156,7 @@ var QRCode=(function(){function C(el,opts){this._el=typeof el==='string'?documen
 
   function updateTopbarStats(){
     try{
-      var orders = (function(){ try{ return JSON.parse(localStorage.getItem('lum_orders')||'[]'); }catch(e){ return []; } })();
+      var orders = (function(){ try{ return JSON.parse(localStorage.getItem(window._sipKey('lum_orders'))||'[]'); }catch(e){ return []; } })();
       var today = new Date().toDateString();
 
       var todayOrders = orders.filter(function(o){
@@ -1843,8 +1894,16 @@ document.getElementById('siplora-chat-hdr-icon').innerHTML=siploraSVG(32);
 document.getElementById('siplora-welcome-icon').innerHTML=siploraSVG(32);
 
 const STORE_KEYS = { tables:'lum_tables', floors:'lum_floors', menu:'lum_menu', tasks:'lum_tasks', customers:'lum_customers', stock:'lum_stock', settings:'lum_settings', billNo:'lum_billno', quotations:'lum_quotations', quotNo:'lum_quotno', suppliers:'lum_suppliers', deliveryOrders:'lum_delivery', loyaltyCustomers:'lum_loyalty' };
-function load(k){ try{ return JSON.parse(localStorage.getItem(STORE_KEYS[k])||'null'); }catch(e){ return null; } }
-function save(k,v){ try{ localStorage.setItem(STORE_KEYS[k],JSON.stringify(v)); }catch(e){} }
+// ── MULTI-RESTAURANT FIX: har localStorage key restaurantId ke saath
+// suffix hoti hai (jaise lum_tables_rest001), taaki same browser pe
+// alag restaurant login karne par purana data kabhi na dikhe/overwrite na ho.
+// window._sip_restaurantId Auth-guard.js set karta hai login ke time.
+function _sipStoreKey(k){
+  var rid = window._sip_restaurantId || 'norestaurant';
+  return STORE_KEYS[k] + '_' + rid;
+}
+function load(k){ try{ return JSON.parse(localStorage.getItem(_sipStoreKey(k))||'null'); }catch(e){ return null; } }
+function save(k,v){ try{ localStorage.setItem(_sipStoreKey(k),JSON.stringify(v)); }catch(e){} }
 function autoSaveCustomerFromBill({ name, phone, spent, dish, billDate, tableNum, waiter, allItems, billNum, pax, entryTime }) {
   if (!name && !phone) return;
   const cleanPhone = (phone || '').replace(/\D/g, '').slice(-10);
@@ -2034,7 +2093,7 @@ function updateClock(){
 updateClock();
 setInterval(updateClock,1000);
 
-const pageTitles={dashboard:'Dashboard',billing:'Billing',tables:'Table Management','qr-tables':'QR Codes',menu:'Menu Management',orders:'Orders',kds:'Kitchen Display',inventory:'Inventory',queue:'Queue',staff:'Staff',attendance:'Attendance',tasks:'Tasks',customers:'Customers',loyalty:'Loyalty',ai:'AI System',security:'AI Security',complaints:'Complaints',events:'Events',tax:'Tax & GST',reports:'Reports',analytics:'Analytics',settings:'Settings',quotation:'Quotation',supplier:'Supplier',delivery:'Online Delivery',birthday:'Birthday CRM','ai-assist':'AI Assistant','todays-offer':"Today's Offer",'rekruters':'My Rekruters',terms:'Terms & Conditions','order-desk':'Order Desk','customer-history':'Customer History','captain':'Captain Command','qr-feedback':'QR Feedback & Ratings'};
+const pageTitles={dashboard:'Dashboard',billing:'Billing',tables:'Table Management','qr-tables':'QR Codes',menu:'Menu Management',orders:'Orders',kds:'Kitchen Display',inventory:'Inventory',queue:'Queue',staff:'Staff',attendance:'Attendance',tasks:'Tasks',customers:'Customers',loyalty:'Loyalty',ai:'AI System',security:'AI Security',complaints:'Complaints',events:'Events',tax:'Tax & GST',reports:'Reports',analytics:'Analytics',settings:'Settings',quotation:'Quotation',supplier:'Supplier',delivery:'Online Delivery',birthday:'Birthday CRM','ai-assist':'AI Assistant','todays-offer':"Today's Offer",'rekruters':'My Rekruters',terms:'Terms & Conditions','order-desk':'Order Desk','customer-history':'Customer History','captain':'Captain Command','chefpanel':'Chef Panel','qr-feedback':'QR Feedback & Ratings'};
 function showPage(id,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -2056,7 +2115,7 @@ function showPage(id,el){
       });
     }
     try{
-      const paidTables=JSON.parse(localStorage.getItem('lum_paid_tables')||'{}');
+      const paidTables=JSON.parse(localStorage.getItem(window._sipKey('lum_paid_tables'))||'{}');
       let changed=false;
       Object.entries(paidTables).forEach(([tn,entry])=>{
         const tNum=parseInt(tn);
@@ -2078,7 +2137,7 @@ function showPage(id,el){
   }
   if(id==='qr-tables'){buildAllQRCodes();}
   if(id==='billing'){buildAutoBillGrid(); populateManualTableSelect();}
-  if(id==='menu'){renderMenuCards(); if(!window._fbMenuInited){ window._fbMenuInited=true; initFirebaseMenuSync(); }}
+  if(id==='menu'){renderMenuCards(); if(!window._fbMenuInited){ initFirebaseMenuSync(); }}
   if(id==='inventory'){renderInventoryTable();checkStockAlerts();updateInvStats();}
   if(id==='staff'){smLoadFromFirebase();}
   if(id==='supplier'){renderSupplierCards();}
@@ -2122,16 +2181,19 @@ async function qrfInit() {
 
     var col       = mods.collection;
     var qFn       = mods.query;
-    var orderByFn = mods.orderBy;
-    var onSnap    = mods.onSnapshot;
+    var whereFn   = mods.where;
+    var onSnap    = window.__onSnapshot || mods.onSnapshot;
+    var rid       = window._sip_restaurantId;
 
     if (_qrfUnsubscribe) { try { _qrfUnsubscribe(); } catch(e){} }
 
     _qrfUnsubscribe = onSnap(
-      qFn(col(db, 'feedback'), orderByFn('submittedAt', 'desc')),
+      qFn(col(db, 'feedback'), whereFn('restaurantId', '==', rid)),
       function(snap) {
         _qrfAllData = [];
         snap.forEach(function(d){ _qrfAllData.push(Object.assign({ _id: d.id }, d.data())); });
+        // Sort in-memory (avoids needing a Firestore composite index for where+orderBy)
+        _qrfAllData.sort(function(a,b){ return new Date(b.submittedAt||0) - new Date(a.submittedAt||0); });
         qrfRenderAll(_qrfAllData);
       },
       function(err) { console.warn('QRF listener error:', err); qrfRenderEmpty(); }
@@ -2480,7 +2542,7 @@ function buildBarChart(elId,vals){
   });
 }
 function buildRevChart(){
-  const orders = getLiveOrders ? getLiveOrders() : (()=>{try{return JSON.parse(localStorage.getItem('lum_orders')||'[]');}catch(e){return[];}})();
+  const orders = getLiveOrders ? getLiveOrders() : (()=>{try{return JSON.parse(localStorage.getItem(window._sipKey('lum_orders'))||'[]');}catch(e){return[];}})();
   const vals=[];
   for(let i=6;i>=0;i--){
     const d=new Date();d.setDate(d.getDate()-i);
@@ -2492,7 +2554,7 @@ function buildRevChart(){
   buildBarChart('rev-chart', vals.map(v=>Math.round((v/max)*96)||0));
 }
 function buildAnalyticsChart(){
-  const orders = getLiveOrders ? getLiveOrders() : (()=>{try{return JSON.parse(localStorage.getItem('lum_orders')||'[]');}catch(e){return[];}})();
+  const orders = getLiveOrders ? getLiveOrders() : (()=>{try{return JSON.parse(localStorage.getItem(window._sipKey('lum_orders'))||'[]');}catch(e){return[];}})();
   const vals=[];
   for(let i=5;i>=0;i--){
     const d=new Date();d.setMonth(d.getMonth()-i);
@@ -2530,7 +2592,7 @@ function renderMainTableGrid(floor){
       const tNum=parseInt(order.tableNumber||order.table||0);
       if(!tNum) return;
       try{
-        const paidTables=JSON.parse(localStorage.getItem('lum_paid_tables')||'{}');
+        const paidTables=JSON.parse(localStorage.getItem(window._sipKey('lum_paid_tables'))||'{}');
         if(paidTables[tNum]){
           const ptEntry=paidTables[tNum]; const paidOId=typeof ptEntry==='object'?ptEntry.orderId:null; const curOId=order._id||order._fbOrderId||'';
           if(paidOId && curOId && paidOId===curOId) return; // Same paid order — skip
@@ -2708,7 +2770,7 @@ function buildAutoBillGrid(){
       const tNum=parseInt(order.tableNumber||order.table||0);
       if(!tNum) return;
       try{
-        const paidTables=JSON.parse(localStorage.getItem('lum_paid_tables')||'{}');
+        const paidTables=JSON.parse(localStorage.getItem(window._sipKey('lum_paid_tables'))||'{}');
         if(paidTables[tNum]){
           const ptEntry=paidTables[tNum];
           const paidOrderId=typeof ptEntry==='object'?ptEntry.orderId:null;
@@ -2940,13 +3002,13 @@ function autoReleaseTable(tableNum){
   tables[tableNum]._paidAt=new Date().toISOString(); // _si(28) BUG FIX: reload pe re-occupy se bachao
   save('tables',tables);
   try{
-    const paidTables=JSON.parse(localStorage.getItem('lum_paid_tables')||'{}');
+    const paidTables=JSON.parse(localStorage.getItem(window._sipKey('lum_paid_tables'))||'{}');
     const paidOrderId = tables[tableNum] && tables[tableNum]._fbOrderId ? tables[tableNum]._fbOrderId : null;
     paidTables[tableNum]={
       paidAt: new Date().toISOString(),
       orderId: paidOrderId  // _si(28) FIX: Order ID bhi save karo — naya order allow karne ke liye
     };
-    localStorage.setItem('lum_paid_tables',JSON.stringify(paidTables));
+    localStorage.setItem(window._sipKey('lum_paid_tables'),JSON.stringify(paidTables));
   }catch(e){}
   if(document.getElementById('page-tables')?.classList.contains('active')){
     renderFloorTabs(); renderMainTableGrid(activeFloor);
@@ -3544,12 +3606,13 @@ async function saveDish(){
       const docFn = window.__doc; const setDocFn = window.__setDoc;
 
       if(editingDishId){
-        await setDocFn(docFn(window.__db, 'menuItems', editingDishId), dishData);
+        const editRid = window._sip_restaurantId || '';
+        await setDocFn(docFn(window.__db, 'menuItems', editingDishId), Object.assign({}, dishData, {restaurantId: editRid}), {merge:true});
         const idx = menuItems.findIndex(m=>m._fbId===editingDishId);
-        if(idx>=0) menuItems[idx] = {...dishData, _fbId: editingDishId};
+        if(idx>=0) menuItems[idx] = {...dishData, restaurantId: editRid, _fbId: editingDishId};
         showToast(_si(28) + ' '+name+' updated! Menu page is live.','success');
       } else {
-        const docRef = await window.__addDoc(window.__col(window.__db,'menuItems'), dishData);
+        const docRef = await window._sipAddDoc(window.__db,'menuItems', dishData);
         menuItems.push({...dishData, _fbId: docRef.id});
         showToast(_si(28) + ' '+name+sectionMsg+' Menu + Order Desk dono pe live! '+_si(46)+'','success');
       }
@@ -3810,6 +3873,16 @@ function saveTask(sendWA){
   };
   taskList.push(task);
   save('tasks',taskList);
+  // Firebase sync
+  (async function(){
+    try{
+      const db = await window._siploraFirebaseLoad();
+      if(db && window.__addDoc && window.__col){
+        const fbTask = Object.assign({}, task, {createdAt: window.__serverTimestamp ? window.__serverTimestamp() : new Date().toISOString()});
+        window._sipAddDoc(db,'tasks', fbTask).catch(e=>console.warn('[Siplora] Task sync error:',e));
+      }
+    }catch(e){ console.warn('[Siplora] Task Firebase error:',e); }
+  })();
   closeModal('task-modal');
   renderTasks();
   scheduleReminder(task);
@@ -3886,7 +3959,26 @@ function scheduleReminder(task){
 
 function taskMarkDone(taskId){
   const t=taskList.find(x=>x.id===taskId);
-  if(t){ t.status='Done'; save('tasks',taskList); renderTasks(); showToast('Task marked done!','success'); }
+  if(t){
+    t.status='Done';
+    save('tasks',taskList);
+    renderTasks();
+    showToast('Task marked done!','success');
+    // Firebase sync — update matching doc
+    (async function(){
+      try{
+        const db = await window._siploraFirebaseLoad();
+        if(db && window.__getDocs && window.__col && window.__updateDoc && window.__doc){
+          const snap = await window.__getDocs(window._sipCol(db,'tasks'));
+          snap.forEach(d=>{
+            if(d.data().id === taskId){
+              window.__updateDoc(window.__doc(db,'tasks',d.id), {status:'Done', updatedAt: new Date().toISOString()});
+            }
+          });
+        }
+      }catch(e){ console.warn('[Siplora] taskMarkDone Firebase error:',e); }
+    })();
+  }
 }
 function triggerAlarm(msg){
   document.getElementById('alarm-msg').innerHTML=msg.replace(/\n/g,'<br>');
@@ -4004,7 +4096,7 @@ function renderKDSPage(){
 
   // Also load from localStorage fallback
   try {
-    var lsOrders = JSON.parse(localStorage.getItem('lum_orders')||'[]');
+    var lsOrders = JSON.parse(localStorage.getItem(window._sipKey('lum_orders'))||'[]');
     lsOrders.forEach(function(lo){
       var exists = (pending.concat(cooking,ready,served)).find(function(x){ return x._id === lo._id; });
       if(!exists){
@@ -4196,9 +4288,9 @@ async function updateKDSOrder(orderId, newStatus){
 
   // Update localStorage fallback
   try{
-    var lsOrders = JSON.parse(localStorage.getItem('lum_orders')||'[]');
+    var lsOrders = JSON.parse(localStorage.getItem(window._sipKey('lum_orders'))||'[]');
     var lo = lsOrders.find(function(x){ return x._id === orderId; });
-    if(lo){ lo.status = newStatus; localStorage.setItem('lum_orders', JSON.stringify(lsOrders)); }
+    if(lo){ lo.status = newStatus; localStorage.setItem(window._sipKey('lum_orders'), JSON.stringify(lsOrders)); }
   } catch(e){}
 
   // Toast messages
@@ -5349,10 +5441,22 @@ let queueList   = [];   // {token, name, phone, party, pref, waitMin, addedAt, s
 let queueSerial = 1;    // next token number
 let qNoShowTimers = {}; // token -> setTimeout id
 
-function qSave(){ try{ localStorage.setItem('lum_queue', JSON.stringify({list:queueList,serial:queueSerial})); }catch(e){} }
+function qSave(){
+  try{ localStorage.setItem(window._sipKey('lum_queue'), JSON.stringify({list:queueList,serial:queueSerial})); }catch(e){}
+  // Firebase sync
+  (async function(){
+    try{
+      const db = await window._siploraFirebaseLoad();
+      if(db && window.__setDoc && window.__doc){
+        window.__setDoc(window.__doc(db,'app_data','queue'), {list:queueList, serial:queueSerial, updatedAt: new Date().toISOString()}, {merge:true})
+          .catch(e=>console.warn('[Siplora] Queue sync error:',e));
+      }
+    }catch(e){ console.warn('[Siplora] qSave Firebase error:',e); }
+  })();
+}
 function qLoad(){
   try{
-    const d = JSON.parse(localStorage.getItem('lum_queue')||'{}');
+    const d = JSON.parse(localStorage.getItem(window._sipKey('lum_queue'))||'{}');
     if(d.list)  queueList   = d.list;
     if(d.serial) queueSerial = d.serial;
   }catch(e){}
@@ -5588,9 +5692,9 @@ function rptGenerateData(period){
   const p = periods[period];
   const gstRate = (RS.gstRate||5)/100;
 
-  const allOrders = getLiveOrders ? getLiveOrders() : (()=>{try{return JSON.parse(localStorage.getItem('lum_orders')||'[]');}catch(e){return[];}})();
-  const allStaff = getLiveStaff ? getLiveStaff() : (()=>{try{return JSON.parse(localStorage.getItem('smStaff')||'[]');}catch(e){return[];}})();
-  const allAtt = getLiveAttendance ? getLiveAttendance() : (()=>{try{return JSON.parse(localStorage.getItem('lum_attendance')||'[]');}catch(e){return[];}})();
+  const allOrders = getLiveOrders ? getLiveOrders() : (()=>{try{return JSON.parse(localStorage.getItem(window._sipKey('lum_orders'))||'[]');}catch(e){return[];}})();
+  const allStaff = getLiveStaff ? getLiveStaff() : (()=>{try{return JSON.parse(localStorage.getItem(window._sipKey('smStaff'))||'[]');}catch(e){return[];}})();
+  const allAtt = getLiveAttendance ? getLiveAttendance() : (()=>{try{return JSON.parse(localStorage.getItem(window._sipKey('lum_attendance'))||'[]');}catch(e){return[];}})();
 
   const periodStart = new Date(now.getTime() - p.days*24*60*60*1000);
   const periodOrders = allOrders.filter(o=>{
@@ -6224,6 +6328,30 @@ function saveQuotation(){
     tr.innerHTML=`<td>${qno}</td><td>${cname}</td><td>${cevent}</td><td>${edateStr}</td><td>₹—</td><td><span class="badge badge-gold">Pending</span></td><td><button class="btn btn-ghost btn-sm" onclick="showToast('Quotation opened','info')">View</button></td>`;
     tbody.appendChild(tr);
   }
+  // Firebase sync
+  const quotData = {
+    qno: qno,
+    customer: cname,
+    phone: document.getElementById('q-cphone')?.value||'',
+    email: document.getElementById('q-cemail')?.value||'',
+    event: document.getElementById('q-event')?.value||'',
+    eventDate: document.getElementById('q-edate')?.value||'',
+    guests: document.getElementById('q-guests')?.value||'',
+    venue: document.getElementById('q-venue')?.value||'',
+    notes: document.getElementById('q-notes')?.value||'',
+    status: 'Pending',
+    createdAt: new Date().toISOString()
+  };
+  (async function(){
+    try{
+      const db = await window._siploraFirebaseLoad();
+      if(db && window.__setDoc && window.__doc){
+        window.__setDoc(window.__doc(db,'quotations',qno), quotData)
+          .then(()=>console.log('[Siplora] Quotation synced to Firebase:', qno))
+          .catch(e=>console.warn('[Siplora] Quotation sync error:',e));
+      }
+    }catch(e){ console.warn('[Siplora] Quotation Firebase error:',e); }
+  })();
   document.getElementById('q-no').value=nextQuotNo();
   showToast('Quotation '+qno+' saved!','success');
 }
@@ -6392,8 +6520,19 @@ function saveSupplier(){
   const products=(document.getElementById('sup-products').value||'').trim();
   if(!name){showToast('Supplier name likho!','warning');return;}
   if(!phone){showToast('Phone number likho!','warning');return;}
-  suppliers.push({name,person,phone,products});
+  const supObj = {name,person,phone,products, createdAt: new Date().toISOString()};
+  suppliers.push(supObj);
   save('suppliers',suppliers);
+  // Firebase sync
+  (async function(){
+    try{
+      const db = await window._siploraFirebaseLoad();
+      if(db && window.__setDoc && window.__doc){
+        window.__setDoc(window.__doc(db,'suppliers',phone||('sup_'+Date.now())), supObj)
+          .catch(e=>console.warn('[Siplora] Supplier sync error:',e));
+      }
+    }catch(e){ console.warn('[Siplora] Supplier Firebase error:',e); }
+  })();
   document.getElementById('sup-add-form').style.display='none';
   renderSupplierCards();
   showToast(_si(28) + ' '+name+' added!','success');
@@ -6401,8 +6540,23 @@ function saveSupplier(){
 
 function supDeleteSupplier(i){
   if(!confirm(suppliers[i].name+' set to delete karna chahte ho?'))return;
+  const sup = suppliers[i];
   suppliers.splice(i,1);
   save('suppliers',suppliers);
+  // Firebase sync — delete
+  (async function(){
+    try{
+      const db = await window._siploraFirebaseLoad();
+      if(db && window.__getDocs && window.__col && window.__deleteDoc && window.__doc){
+        const snap = await window.__getDocs(window._sipCol(db,'suppliers'));
+        snap.forEach(d=>{
+          if(d.data().phone === sup.phone && d.data().name === sup.name){
+            window.__deleteDoc(window.__doc(db,'suppliers',d.id));
+          }
+        });
+      }
+    }catch(e){ console.warn('[Siplora] Supplier delete Firebase error:',e); }
+  })();
   renderSupplierCards();
   showToast('Supplier revoked','info');
 }
@@ -6673,7 +6827,7 @@ async function initFirebaseMenuSync(){
     if (!db) return;
     const { collection, getDocs, onSnapshot } = { collection: window.__col, getDocs: window.__getDocs, onSnapshot: window.__onSnapshot };
 
-    onSnapshot(collection(db,'menuItems'), snap => {
+    window.__onSnapshot(window._sipCol(db, 'menuItems'), snap => {
       const fbItems = [];
       snap.forEach(d => fbItems.push({...d.data(), _fbId: d.id}));
       menuItems.length = 0;
@@ -6834,7 +6988,7 @@ async function quickAddToMenu(){
 
   if(window.__db && window.__addDoc && window.__col){
     try {
-      const docRef = await window.__addDoc(window.__col(window.__db,'menuItems'), dishData);
+      const docRef = await window._sipAddDoc(window.__db,'menuItems', dishData);
       menuItems.push({...dishData, _fbId: docRef.id});
       save('menu', menuItems);
       showToast(_si(28) + ' ' + name + ' → ' + sectionLabel + ' added! Live on menu page!', 'success');
@@ -6881,7 +7035,7 @@ async function initFirebase(){
     await window._siploraFirebaseLoad();
     const {initializeApp, getApps, getFirestore} = window.__firebaseModules || {};
     if(!getApps) throw new Error('getApps is not defined');
-    const {collection, doc, getDocs, onSnapshot, addDoc, updateDoc, setDoc, query, orderBy, serverTimestamp} = { collection:window.__col,doc:window.__doc,getDocs:window.__getDocs,onSnapshot:window.__onSnapshot,addDoc:window.__addDoc,updateDoc:window.__updateDoc,setDoc:window.__setDoc,query:window.__query,orderBy:window.__orderBy,serverTimestamp:window.__serverTimestamp };
+    const {collection, doc, getDocs, onSnapshot, addDoc, updateDoc, setDoc, query, where, orderBy, serverTimestamp} = { collection:window.__col,doc:window.__doc,getDocs:window.__getDocs,onSnapshot:window.__onSnapshot,addDoc:window.__addDoc,updateDoc:window.__updateDoc,setDoc:window.__setDoc,query:window.__query,where:window.__where,orderBy:window.__orderBy,serverTimestamp:window.__serverTimestamp };
     const apps = getApps();
     __fbApp = apps.length ? apps[0] : initializeApp(FB_CONFIG);
     __fbDb = getFirestore(__fbApp);
@@ -6894,6 +7048,7 @@ async function initFirebase(){
     window.__setDoc = setDoc;
     window.__onSnapshot = onSnapshot;
     window.__query = query;
+    window.__where = where;
     window.__orderBy = orderBy;
     window.__serverTimestamp = serverTimestamp;
     window.__getDocs = getDocs;
@@ -6913,10 +7068,18 @@ async function initFirebaseTablesSync(){
   try {
     const {collection, onSnapshot} = {collection: window.__col, onSnapshot: window.__onSnapshot};
     if(_fbTablesUnsub) _fbTablesUnsub();
-    _fbTablesUnsub = onSnapshot(window.__col(db,'tables'), snap => {
+    // MULTI-RESTAURANT FIX: _sipCol ab root collection + restaurantId
+    // filter use karta hai (asli data structure ke hisaab se) — subcollection
+    // path exist hi nahi karta is database me.
+    const tablesCol = window._sipCol(db,'tables');
+    _fbTablesUnsub = onSnapshot(tablesCol, snap => {
       snap.forEach(d => {
         const data = d.data();
-        const tNum = parseInt(d.id);
+        // MULTI-RESTAURANT FIX: document ID ab "{restaurantId}_{tableNum}"
+        // bhi ho sakti hai (naye writes se) ya seedha table number bhi
+        // (purane data se). Pehle "tableNumber" field try karo, warna
+        // doc ID se number nikalo.
+        const tNum = data.tableNumber ? parseInt(data.tableNumber) : parseInt(d.id);
         if(!isNaN(tNum)){
           if(!tables[tNum]) tables[tNum] = {status:'available', pax:4, floor:'Ground', order:[]};
           const locallyCleared = tables[tNum].status === 'available' && (!tables[tNum].order || tables[tNum].order.length === 0);
@@ -6924,7 +7087,7 @@ async function initFirebaseTablesSync(){
           const localPaidAt = tables[tNum]._paidAt && (Date.now() - new Date(tables[tNum]._paidAt).getTime() < 86400000);
           let locallyPaid = false;
           try{
-            const paidTables2=JSON.parse(localStorage.getItem('lum_paid_tables')||'{}');
+            const paidTables2=JSON.parse(localStorage.getItem(window._sipKey('lum_paid_tables'))||'{}');
             if(paidTables2[tNum]){ const pt2=paidTables2[tNum]; const paidOId3=typeof pt2==='object'?pt2.orderId:null; const fbOId3=data._fbOrderId||''; locallyPaid=(paidOId3&&fbOId3)?paidOId3===fbOId3:true; }
           }catch(e){}
           if((recentlyPaid || locallyPaid || localPaidAt) && data.status === 'occupied'){
@@ -6963,8 +7126,11 @@ async function initFirebaseOrdersSync(){
   if(!db) return;
   try {
     if(_fbOrdersUnsub) _fbOrdersUnsub();
+    // MULTI-RESTAURANT FIX: _sipCol ab root collection + restaurantId
+    // filter use karta hai — subcollection path exist nahi karta.
+    const ordersCol = window._sipCol(db,'orders');
     _fbOrdersUnsub = window.__onSnapshot(
-      window.__col(db,'orders'),
+      ordersCol,
       snap => {
         const activeTables = new Set();
         snap.forEach(d => {
@@ -6974,11 +7140,11 @@ async function initFirebaseOrdersSync(){
           if(order.status === 'paid' || order.status === 'cancelled') return;
           if(order.paidAt && (Date.now() - new Date(order.paidAt).getTime() < 86400000)) return;
           try{
-            const paidTables=JSON.parse(localStorage.getItem('lum_paid_tables')||'{}');
+            const paidTables=JSON.parse(localStorage.getItem(window._sipKey('lum_paid_tables'))||'{}');
             if(paidTables[tNum]){
               const ptEntry2=paidTables[tNum]; const paidOId2=typeof ptEntry2==='object'?ptEntry2.orderId:null; const curOId2=d.id||'';
               if(paidOId2 && curOId2 && paidOId2===curOId2) return; // Same paid order
-              delete paidTables[tNum]; localStorage.setItem('lum_paid_tables',JSON.stringify(paidTables)); // New order — clear
+              delete paidTables[tNum]; localStorage.setItem(window._sipKey('lum_paid_tables'),JSON.stringify(paidTables)); // New order — clear
             }
           }catch(e){}
           activeTables.add(tNum); // Yeh table occupied hai
@@ -6991,7 +7157,7 @@ async function initFirebaseOrdersSync(){
           if(order.paidAt && (Date.now() - new Date(order.paidAt).getTime() < 86400000)) return;
           if(!tNum || isNaN(tNum)) return;
           try{
-            const paidTables=JSON.parse(localStorage.getItem('lum_paid_tables')||'{}');
+            const paidTables=JSON.parse(localStorage.getItem(window._sipKey('lum_paid_tables'))||'{}');
             if(paidTables[tNum] && (Date.now()-new Date(paidTables[tNum]).getTime()<86400000)) return;
           }catch(e){}
           if(tNum){
@@ -7102,13 +7268,22 @@ function renderDashboardOrders(snap){
 }
 
 (async function autoInitFB(){
+  // ── MULTI-RESTAURANT: restaurantId set hone ka wait karo ──
+  await new Promise(resolve => {
+    if (window._sip_restaurantId) return resolve();
+    const check = setInterval(() => {
+      if (window._sip_restaurantId) { clearInterval(check); resolve(); }
+    }, 200);
+    // Agar 30 seconds mein nahi mila (login nahi hua) toh bhi continue karo
+    setTimeout(() => { clearInterval(check); resolve(); }, 30000);
+  });
+
   await window._siploraFirebaseLoad(); // Load firebase ONCE first
   await initFirebase();
   await initFirebaseTablesSync();
   await initFirebaseOrdersSync();
   // ── Menu sync: app start pe hi load karo, Menu page click ka wait mat karo ──
   if(!window._fbMenuInited){
-    window._fbMenuInited = true;
     initFirebaseMenuSync();
   }
 })();
@@ -7154,9 +7329,9 @@ async function markTablePaidAndUpdate(){
     save('tables',tables);
   }
   try{
-    const paidTables=JSON.parse(localStorage.getItem('lum_paid_tables')||'{}');
+    const paidTables=JSON.parse(localStorage.getItem(window._sipKey('lum_paid_tables'))||'{}');
     paidTables[d.tableNum]=new Date().toISOString();
-    localStorage.setItem('lum_paid_tables',JSON.stringify(paidTables));
+    localStorage.setItem(window._sipKey('lum_paid_tables'),JSON.stringify(paidTables));
   }catch(e){}
 
   const fbOrderId = d._fbOrderId || (tables[d.tableNum]&&tables[d.tableNum]._fbOrderId);
@@ -7202,18 +7377,20 @@ async function markTablePaidAndUpdate(){
 }
 
 function _getMenuUrl(tableNum){
-  const saved=localStorage.getItem('lum_menu_url');
+  const rid = window._sip_restaurantId || '';
+  const ridParam = rid ? ('&rid='+encodeURIComponent(rid)) : '';
+  const saved=localStorage.getItem(window._sipKey('lum_menu_url'));
   if(saved && saved.trim()){
     const base=saved.trim().replace(/\?.*$/,'').replace(/\/$/, '');
-    return base+'?table='+tableNum;
+    return base+'?table='+tableNum+ridParam;
   }
-  return 'https://anandagadhe376-glitch.github.io/siplora-menu/?table='+tableNum;
+  return 'https://anandagadhe376-glitch.github.io/m/?table='+tableNum+ridParam;
 }
 
 function saveMenuUrl(){
   const val=document.getElementById('s-menu-url')?.value?.trim();
   if(!val){ showToast('Please enter a URL first','warning'); return; }
-  localStorage.setItem('lum_menu_url', val);
+  localStorage.setItem(window._sipKey('lum_menu_url'), val);
   const preview=document.getElementById('qr-url-preview');
   if(preview) preview.textContent=_si(28) + ' Saved! Preview: '+val.replace(/menu\.html.*/,'')+'menu.html?table=1';
   showToast(_si(28) + ' Menu URL saved! QR codes ab naye URL se banenge.','success');
@@ -7221,23 +7398,19 @@ function saveMenuUrl(){
 }
 
 function autoDetectUrl(){
-  if(location.protocol==='http:'||location.protocol==='https:'){
-    const folder=location.href.replace(/[^/]*$/,'');
-    const url=folder+'menu.html';
-    const inp=document.getElementById('s-menu-url');
-    if(inp) inp.value=url;
-    const preview=document.getElementById('qr-url-preview');
-    if(preview) preview.textContent=_si(41) + ' Detected: '+url+'?table=1';
-    showToast('URL auto-detected: '+url,'success');
-  } else {
-    showToast(_si(18) + ' File:// protocol — start Live Server and enter the IP','warning');
-  }
+  const url='https://anandagadhe376-glitch.github.io/m/';
+  const inp=document.getElementById('s-menu-url');
+  if(inp) inp.value=url;
+  const preview=document.getElementById('qr-url-preview');
+  if(preview) preview.textContent=_si(41) + ' Detected: '+url+'?table=1&rid=YOUR_ID';
+  showToast('URL set: '+url,'success');
+  if(document.getElementById('page-qr-tables')?.classList.contains('active')) buildAllQRCodes();
 }
 
-let WA_CONFIG = JSON.parse(localStorage.getItem('lum_wa_config')||'{}');
+let WA_CONFIG = JSON.parse(localStorage.getItem(window._sipKey('lum_wa_config'))||'{}');
 
 (function(){
-  const saved = localStorage.getItem('lum_wa_server_url')||'';
+  const saved = localStorage.getItem(window._sipKey('lum_wa_server_url'))||'';
   const el = document.getElementById('s-wa-server-url');
   if(el && saved) el.value = saved;
 })();
@@ -7245,7 +7418,7 @@ let WA_CONFIG = JSON.parse(localStorage.getItem('lum_wa_config')||'{}');
 function saveWaServerUrl(){
   const url = (document.getElementById('s-wa-server-url').value||'').trim();
   if(!url){ showToast('Please enter a URL first!','error'); return; }
-  localStorage.setItem('lum_wa_server_url', url);
+  localStorage.setItem(window._sipKey('lum_wa_server_url'), url);
   document.getElementById('wa-server-url-status').textContent = _si(28) + ' Saved: '+url;
   document.getElementById('wa-server-url-status').style.color = '#2ecc71';
   showToast('WhatsApp Server URL saved!','success');
@@ -7290,7 +7463,7 @@ function saveWaApi(){
     promo: document.getElementById('wa-toggle-promo').classList.contains('on'),
     connected: true
   };
-  localStorage.setItem('lum_wa_config', JSON.stringify(WA_CONFIG));
+  localStorage.setItem(window._sipKey('lum_wa_config'), JSON.stringify(WA_CONFIG));
   updateWaStatusBadge(true);
   showToast(_si(28) + ' WhatsApp API saved & connected!','success');
 }
@@ -7298,7 +7471,7 @@ function saveWaApi(){
 function disconnectWaApi(){
   if(!confirm('WhatsApp API disconnect karna chahte ho?')) return;
   WA_CONFIG = {};
-  localStorage.removeItem('lum_wa_config');
+  localStorage.removeItem(window._sipKey('lum_wa_config'));
   updateWaStatusBadge(false);
   document.getElementById('wa-api-key').value='';
   document.getElementById('wa-phone-id').value='';
@@ -7410,12 +7583,13 @@ function loadWaSettingsIntoForm(){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  const saved=localStorage.getItem('lum_menu_url');
+  const saved=localStorage.getItem(window._sipKey('lum_menu_url'));
   const inp=document.getElementById('s-menu-url');
   if(inp){
     if(saved) inp.value=saved;
     else if(location.protocol==='http:'||location.protocol==='https:'){
-      inp.value=location.href.replace(/[^/]*$/,'')+'menu.html';
+      // Default to the correct GitHub Pages menu URL
+      inp.value='https://anandagadhe376-glitch.github.io/m/';
     }
   }
   const preview=document.getElementById('qr-url-preview');
@@ -7445,7 +7619,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     console.log('[Siplora] Firebase Extras ready [icon]');
     window.dispatchEvent(new Event('firebaseReady'));
 
-    onSnapshot(collection(db,'customers'), snap=>{
+    window.__onSnapshot(window._sipCol(db, 'customers'), snap=>{
       customers = snap.docs.map(d=>({ _id:d.id, ...d.data() }));
       const getTier=s=>s>=15000?'Platinum':s>=7000?'Gold':s>=3000?'Silver':'Bronze';
       customers.forEach(c=>{ c.tier=c.tier||getTier(c.spent||0); });
@@ -7456,7 +7630,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       console.log('[Siplora] Customers loaded from Firebase:',customers.length);
     });
 
-    onSnapshot(collection(db,'suppliers'), snap=>{
+    window.__onSnapshot(window._sipCol(db, 'suppliers'), snap=>{
       suppliers = snap.docs.map(d=>({ _id:d.id, ...d.data() }));
       renderSupplierCards();
       renderSupStockTable();
@@ -7565,7 +7739,7 @@ async function markTablePaidFB(tableNum){
     await window.__fbSetDoc(window.__fbDoc(window.__fbDb,'tables',String(tableNum)),{status:'available',currentOrder:[],paidAt:new Date().toISOString()},{merge:true});
     try{
       if(window.__fbDb && window.__fbUpdateDoc && window.__fbDoc){
-        const paidTables=JSON.parse(localStorage.getItem('lum_paid_tables')||'{}');
+        const paidTables=JSON.parse(localStorage.getItem(window._sipKey('lum_paid_tables'))||'{}');
         const tData=tables[tableNum];
         const fbOrderId=tData&&tData._fbOrderId;
         if(fbOrderId){
@@ -8318,9 +8492,9 @@ document.addEventListener('DOMContentLoaded',function(){
 
 console.log('[Siplora] QR System + Firebase fully loaded [icon]');
 
-let esEmployees = JSON.parse(localStorage.getItem('es_employees') || '[]');
-let esAttendance = JSON.parse(localStorage.getItem('es_attendance') || '{}'); // key: empId_YYYY-MM-DD_shift
-let esSalaryStatus = JSON.parse(localStorage.getItem('es_salary_status') || '{}'); // key: empId_YYYY-MM
+let esEmployees = JSON.parse(localStorage.getItem(window._sipKey('es_employees')) || '[]');
+let esAttendance = JSON.parse(localStorage.getItem(window._sipKey('es_attendance')) || '{}'); // key: empId_YYYY-MM-DD_shift
+let esSalaryStatus = JSON.parse(localStorage.getItem(window._sipKey('es_salary_status')) || '{}'); // key: empId_YYYY-MM
 
 const ES_SHIFTS = {
   morning: {label:'Shift 1 — Morning', time:'6am–2pm', icon:''+_si(80)+''},
@@ -8331,9 +8505,28 @@ const ES_SHIFTS = {
 const ES_CATEGORIES = ['Chef','Head Chef','Sous Chef','Waiter','Captain Waiter','Manager','Cashier','Cleaner','Security','Delivery Boy','Helper','Receptionist','Other'];
 
 function esSave(){
-  localStorage.setItem('es_employees', JSON.stringify(esEmployees));
-  localStorage.setItem('es_attendance', JSON.stringify(esAttendance));
-  localStorage.setItem('es_salary_status', JSON.stringify(esSalaryStatus));
+  localStorage.setItem(window._sipKey('es_employees'), JSON.stringify(esEmployees));
+  localStorage.setItem(window._sipKey('es_attendance'), JSON.stringify(esAttendance));
+  localStorage.setItem(window._sipKey('es_salary_status'), JSON.stringify(esSalaryStatus));
+  // Firebase sync
+  (async function(){
+    try{
+      const db = await window._siploraFirebaseLoad();
+      if(!db || !window.__setDoc || !window.__doc) return;
+      // Sync each employee individually
+      esEmployees.forEach(function(emp){
+        if(!emp.id) return;
+        window.__setDoc(window.__doc(db,'es_employees', String(emp.id)), emp, {merge:true})
+          .catch(e=>console.warn('[Siplora] Employee sync error:',e));
+      });
+      // Sync attendance as a single doc (keyed object)
+      window.__setDoc(window.__doc(db,'es_data','attendance'), {data: esAttendance, updatedAt: new Date().toISOString()}, {merge:true})
+        .catch(e=>console.warn('[Siplora] Attendance sync error:',e));
+      // Sync salary status as a single doc
+      window.__setDoc(window.__doc(db,'es_data','salary_status'), {data: esSalaryStatus, updatedAt: new Date().toISOString()}, {merge:true})
+        .catch(e=>console.warn('[Siplora] Salary status sync error:',e));
+    }catch(e){ console.warn('[Siplora] esSave Firebase error:',e); }
+  })();
 }
 
 function esGetToday(){ return new Date().toISOString().split('T')[0]; }
@@ -9226,7 +9419,19 @@ const AIF_KEY = 'lum_ai_forecast';
 const AIF_CATEGORIES = ['Dine-in','Takeaway','Delivery','Beverages','Desserts','Catering'];
 
 function aifLoad(){ try{ return JSON.parse(localStorage.getItem(AIF_KEY)||'null'); }catch(e){ return null; } }
-function aifSave(data){ try{ localStorage.setItem(AIF_KEY, JSON.stringify(data)); }catch(e){} }
+function aifSave(data){
+  try{ localStorage.setItem(AIF_KEY, JSON.stringify(data)); }catch(e){}
+  // Firebase sync
+  (async function(){
+    try{
+      const db = await window._siploraFirebaseLoad();
+      if(db && window.__setDoc && window.__doc){
+        window.__setDoc(window.__doc(db,'ai_data','forecast'), Object.assign({}, data, {updatedAt: new Date().toISOString()}), {merge:true})
+          .catch(e=>console.warn('[Siplora] AI Forecast sync error:',e));
+      }
+    }catch(e){ console.warn('[Siplora] aifSave Firebase error:',e); }
+  })();
+}
 
 function aifDefaultData(){
   const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -9876,7 +10081,21 @@ function menuComplaintReport(dishName, dishCat) {
 
 const ACR_KEY = 'lum_complaints';
 function acrLoad(){ try{ return JSON.parse(localStorage.getItem(ACR_KEY)||'[]'); }catch(e){ return []; }}
-function acrSave(d){ localStorage.setItem(ACR_KEY, JSON.stringify(d)); }
+function acrSave(d){
+  localStorage.setItem(ACR_KEY, JSON.stringify(d));
+  // Firebase sync — save each complaint as individual doc
+  (async function(){
+    try{
+      const db = await window._siploraFirebaseLoad();
+      if(!db || !window.__setDoc || !window.__doc) return;
+      (d||[]).forEach(function(complaint){
+        if(!complaint.id) return;
+        window.__setDoc(window.__doc(db,'complaints', String(complaint.id)), complaint, {merge:true})
+          .catch(e=>console.warn('[Siplora] Complaint sync error:',e));
+      });
+    }catch(e){ console.warn('[Siplora] acrSave Firebase error:',e); }
+  })();
+}
 
 const ACR_TEMPLATES = {
   food_quality: (name, res, rest, mgr) => `${_si(15)} *Namaste ${name} Ji,*\n\nWe sincerely thank you for your feedback.\n\nWe are sorry that you did not enjoy our food today. *${rest}* we always strive to serve high-quality food.\n\n${_si(28)} *Hamari taraf se:* ${res}\n\nAapki satisfaction hamari priority hai. Kisi bhi sawaal ke liye directly hamare manager se baat karein: ${_si(23)} ${mgr}\n\n— *${rest} Team* ${_si(15)}`,
@@ -10438,9 +10657,36 @@ const WL_KEY = 'lum_waitlist';
 // Global helper – used by wlRender, resRenderStatsBox, etc.
 function setEl(id, val){ const el = document.getElementById(id); if(el) el.textContent = val; }
 function resLoadAll(){ try{ return JSON.parse(localStorage.getItem(RES_KEY)||'[]'); }catch(e){ return []; }}
-function resSaveAll(d){ localStorage.setItem(RES_KEY, JSON.stringify(d)); }
+function resSaveAll(d){
+  localStorage.setItem(RES_KEY, JSON.stringify(d));
+  // Firebase sync
+  (async function(){
+    try{
+      const db = await window._siploraFirebaseLoad();
+      if(!db || !window.__setDoc || !window.__doc) return;
+      (d||[]).forEach(function(res){
+        const resId = res.id || res.phone || ('res_'+res.date+'_'+(res.name||'').replace(/\s/g,''));
+        if(!resId) return;
+        window.__setDoc(window.__doc(db,'reservations', String(resId)), res, {merge:true})
+          .catch(e=>console.warn('[Siplora] Reservation sync error:',e));
+      });
+    }catch(e){ console.warn('[Siplora] resSaveAll Firebase error:',e); }
+  })();
+}
 function wlLoadAll(){ try{ return JSON.parse(localStorage.getItem(WL_KEY)||'[]'); }catch(e){ return []; }}
-function wlSaveAll(d){ localStorage.setItem(WL_KEY, JSON.stringify(d)); }
+function wlSaveAll(d){
+  localStorage.setItem(WL_KEY, JSON.stringify(d));
+  // Firebase sync
+  (async function(){
+    try{
+      const db = await window._siploraFirebaseLoad();
+      if(db && window.__setDoc && window.__doc){
+        window.__setDoc(window.__doc(db,'app_data','waitlist'), {list: d||[], updatedAt: new Date().toISOString()}, {merge:true})
+          .catch(e=>console.warn('[Siplora] Waitlist sync error:',e));
+      }
+    }catch(e){ console.warn('[Siplora] wlSaveAll Firebase error:',e); }
+  })();
+}
 
 function resInit(){
   const today = new Date().toISOString().split('T')[0];
@@ -10463,7 +10709,7 @@ async function initFirebaseReservationsSync(){
     const db = await initFirebase();
     if(!db) return;
     if(_fbResUnsub) _fbResUnsub();
-    _fbResUnsub = window.__onSnapshot(window.__col(db, 'reservations'), snap => {
+    _fbResUnsub = window.__onSnapshot(window._sipCol(db, 'reservations'), snap => {
       const fbRes = [];
       snap.forEach(d => {
         const data = d.data();
@@ -10611,7 +10857,10 @@ async function resOwnerConfirm(id){
       // Table reserved karo Firebase + local mein
       const tableNum = r.tableNo || r.tableNum;
       if(tableNum){
-        await setDoc(doc(db, 'tables', String(tableNum)), { status: 'reserved' }, { merge: true });
+        // MULTI-RESTAURANT FIX: document ID restaurantId ke saath scope kiya,
+        // warna do restaurants ka "Table 5" Firestore mein clash karta tha.
+        const _rid = window._sip_restaurantId || 'norestaurant';
+        await setDoc(doc(db, 'tables', _rid + '_' + String(tableNum)), { status: 'reserved', restaurantId: _rid, tableNumber: String(tableNum) }, { merge: true });
         // Local billing tables mein bhi update karo
         const key = String(parseInt(tableNum));
         if(!tables[key]) tables[key] = { status:'available', pax:4, floor:'Ground', order:[] };
@@ -10686,8 +10935,8 @@ function resBook(){
     try {
       const db = await initFirebase();
       if(!db) return;
-      const { addDoc, collection, serverTimestamp } = window.__firebaseModules;
-      await addDoc(collection(db, 'reservations'), {
+      const { serverTimestamp } = window.__firebaseModules;
+      await window._sipAddDoc(db, 'reservations', {
         ...entry,
         createdAt: serverTimestamp(),
         source: source || 'manual'
@@ -10841,8 +11090,10 @@ function resUpdateStatus(id, status){
         if(status === 'completed' || status === 'cancelled' || status === 'no-show'){
           const tableNum = r.tableNo || r.tableNum;
           if(tableNum){
+            // MULTI-RESTAURANT FIX: same scoped doc ID as the reserve call above
+            const _rid2 = window._sip_restaurantId || 'norestaurant';
             // Firebase tables collection mein available karo
-            await setDoc(doc(db, 'tables', String(tableNum)), { status: 'available' }, { merge: true });
+            await setDoc(doc(db, 'tables', _rid2 + '_' + String(tableNum)), { status: 'available', restaurantId: _rid2, tableNumber: String(tableNum) }, { merge: true });
             // Local billing tables mein bhi update karo
             const key = String(parseInt(tableNum));
             if(tables[key]){ tables[key].status = 'available'; save('tables', tables); }
@@ -10942,7 +11193,21 @@ function resExportCSV(){
 
 const PAY_KEY = 'lum_payments';
 function payLoad(){ try{ return JSON.parse(localStorage.getItem(PAY_KEY)||'[]'); }catch(e){ return []; }}
-function paySave(d){ localStorage.setItem(PAY_KEY, JSON.stringify(d)); }
+function paySave(d){
+  localStorage.setItem(PAY_KEY, JSON.stringify(d));
+  // Firebase sync — save each payment record individually
+  (async function(){
+    try{
+      const db = await window._siploraFirebaseLoad();
+      if(!db || !window.__setDoc || !window.__doc) return;
+      (d||[]).forEach(function(pay){
+        const payId = pay.id || pay.txnId || ('pay_'+Date.now()+'_'+Math.random().toString(36).slice(2,6));
+        window.__setDoc(window.__doc(db,'payments', String(payId)), pay, {merge:true})
+          .catch(e=>console.warn('[Siplora] Payment sync error:',e));
+      });
+    }catch(e){ console.warn('[Siplora] paySave Firebase error:',e); }
+  })();
+}
 
 function payInit(){
   payUpdateStats();
@@ -11486,7 +11751,7 @@ TOD_SAMPLE_DATA.push(
 let todActiveCat = 'all';
 let todSlideState = {}; // { offerId: currentSlideIndex }
 let todTimers = {};
-let todInquiries = JSON.parse(localStorage.getItem('tod_inq')||'[]');
+let todInquiries = JSON.parse(localStorage.getItem(window._sipKey('tod_inq'))||'[]');
 
 function todGetData(){ return TOD_SAMPLE_DATA; }
 
@@ -11708,7 +11973,7 @@ function todSMS(phone, id){
 
 function todLogInq(offerId, type){
   todInquiries.push({offerId,type,date:new Date().toLocaleDateString('en-IN'),time:new Date().toLocaleTimeString('en-IN')});
-  localStorage.setItem('tod_inq',JSON.stringify(todInquiries));
+  localStorage.setItem(window._sipKey('tod_inq'),JSON.stringify(todInquiries));
   todUpdateStats();
 }
 
@@ -12361,7 +12626,7 @@ async function buildDashNotificationsFromFirebase() {
     const customers = getLiveCustomers ? getLiveCustomers() : [];
     const staff     = getLiveStaff ? getLiveStaff() : [];
     const stock     = getLiveStock ? getLiveStock() : [];
-    const tasks     = (()=>{ try{ return JSON.parse(localStorage.getItem('lum_tasks')||'[]'); }catch(e){return[];} })();
+    const tasks     = (()=>{ try{ return JSON.parse(localStorage.getItem(window._sipKey('lum_tasks'))||'[]'); }catch(e){return[];} })();
     const now       = new Date();
     const today     = now.toDateString();
     const fmtTime   = d => new Date(d).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
@@ -12458,10 +12723,10 @@ async function buildDashFeatureSummaryFromFirebase() {
     const customers = getLiveCustomers ? getLiveCustomers() : [];
     const staff     = getLiveStaff ? getLiveStaff() : [];
     const stock     = getLiveStock ? getLiveStock() : [];
-    const tasks     = (()=>{ try{ return JSON.parse(localStorage.getItem('lum_tasks')||'[]'); }catch(e){return[];} })();
-    const reservations = (()=>{ try{ return JSON.parse(localStorage.getItem('lum_reservations')||'[]'); }catch(e){return[];} })();
-    const feedback  = (()=>{ try{ return JSON.parse(localStorage.getItem('lum_feedback')||'[]'); }catch(e){return[];} })();
-    const purchases = (()=>{ try{ return JSON.parse(localStorage.getItem('lum_purchases')||'[]'); }catch(e){return[];} })();
+    const tasks     = (()=>{ try{ return JSON.parse(localStorage.getItem(window._sipKey('lum_tasks'))||'[]'); }catch(e){return[];} })();
+    const reservations = (()=>{ try{ return JSON.parse(localStorage.getItem(window._sipKey('lum_reservations'))||'[]'); }catch(e){return[];} })();
+    const feedback  = (()=>{ try{ return JSON.parse(localStorage.getItem(window._sipKey('lum_feedback'))||'[]'); }catch(e){return[];} })();
+    const purchases = (()=>{ try{ return JSON.parse(localStorage.getItem(window._sipKey('lum_purchases'))||'[]'); }catch(e){return[];} })();
     const now       = new Date();
     const today     = now.toDateString();
     const todayMD   = String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
@@ -13771,15 +14036,15 @@ async function loadFirebaseDashData(forceRefresh) {
     if(!db) return null;
     const { collection, getDocs } = { collection: window.__col, getDocs: window.__getDocs };
     const [ordSnap, custSnap, staffSnap, stockSnap, billSnap] = await Promise.all([
-      getDocs(collection(db, 'orders')),
-      getDocs(collection(db, 'customers')),
-      getDocs(collection(db, 'staff')),
-      getDocs(collection(db, 'stock')).catch(()=>null),
-      getDocs(collection(db, 'bills')).catch(()=>null)
+      getDocs(window._sipCol(db, 'orders')),
+      getDocs(window._sipCol(db, 'customers')),
+      getDocs(window._sipCol(db, 'staff')).catch((e)=>{ console.warn('[Dashboard] staff fetch failed:', e.message); return null; }),
+      getDocs(window._sipCol(db, 'stock')).catch((e)=>{ console.warn('[Dashboard] stock fetch failed:', e.message); return null; }),
+      getDocs(window._sipCol(db, 'bills')).catch((e)=>{ console.warn('[Dashboard] bills fetch failed:', e.message); return null; })
     ]);
     cache.orders    = ordSnap.docs.map(d => ({...d.data(), _id: d.id}));
     cache.customers = custSnap.docs.map(d => ({...d.data(), _id: d.id}));
-    cache.staff     = staffSnap.docs.map(d => ({...d.data(), _id: d.id}));
+    cache.staff     = staffSnap ? staffSnap.docs.map(d => ({...d.data(), _id: d.id})) : [];
     cache.stock     = stockSnap ? stockSnap.docs.map(d => ({...d.data(), _id: d.id})) : [];
     if(billSnap) {
       const bills = billSnap.docs.map(d => ({...d.data(), _id: d.id, _fromBills: true}));
@@ -13788,10 +14053,10 @@ async function loadFirebaseDashData(forceRefresh) {
     }
     cache.loadedAt  = Date.now();
     try {
-      if(cache.orders.length)    localStorage.setItem('lum_orders',    JSON.stringify(cache.orders));
-      if(cache.customers.length) localStorage.setItem('lum_customers', JSON.stringify(cache.customers));
-      if(cache.staff.length)     localStorage.setItem('smStaff',       JSON.stringify(cache.staff));
-      if(cache.stock && cache.stock.length) localStorage.setItem('lum_stock', JSON.stringify(cache.stock));
+      if(cache.orders.length)    localStorage.setItem(window._sipKey('lum_orders'),    JSON.stringify(cache.orders));
+      if(cache.customers.length) localStorage.setItem(window._sipKey('lum_customers'), JSON.stringify(cache.customers));
+      if(cache.staff.length)     localStorage.setItem(window._sipKey('smStaff'),       JSON.stringify(cache.staff));
+      if(cache.stock && cache.stock.length) localStorage.setItem(window._sipKey('lum_stock'), JSON.stringify(cache.stock));
     } catch(e){}
     console.log('[Dashboard] Firebase data loaded [icon] — Orders:', cache.orders.length, '| Customers:', cache.customers.length, '| Staff:', cache.staff.length);
     return cache;
@@ -13808,10 +14073,10 @@ async function startDashboardFirebaseListener() {
     const db = await initFirebase();
     if(!db) return;
     const { collection, onSnapshot } = { collection: window.__col, onSnapshot: window.__onSnapshot };
-    _dashFbUnsub = onSnapshot(collection(db, 'orders'), snap => {
+    _dashFbUnsub = window.__onSnapshot(window._sipCol(db, 'orders'), snap => {
       window._fbDashCache.orders = snap.docs.map(d => ({...d.data(), _id: d.id}));
       window._fbDashCache.loadedAt = Date.now();
-      try { localStorage.setItem('lum_orders', JSON.stringify(window._fbDashCache.orders)); } catch(e){}
+      try { localStorage.setItem(window._sipKey('lum_orders'), JSON.stringify(window._fbDashCache.orders)); } catch(e){}
       const dashActive = document.getElementById('page-dashboard')?.classList.contains('active');
       const analActive = document.getElementById('page-analytics')?.classList.contains('active');
       if(dashActive) {
@@ -13826,6 +14091,8 @@ async function startDashboardFirebaseListener() {
         }, 100);
       }
       if(analActive) { analyticsChartsDrawn = {}; setTimeout(()=>analyticsInit(), 100); }
+    }, err => {
+      console.warn('[Dashboard] Orders listener permission/error:', err.code, err.message);
     });
     console.log('[Dashboard] Real-time Firebase listener active [icon]');
   } catch(e) { console.warn('[Dashboard] Listener error:', e.message); }
@@ -13846,23 +14113,23 @@ function _getOrderDate(o) {
 function getLiveOrders() {
   const raw = (window._fbDashCache && window._fbDashCache.orders !== null)
     ? window._fbDashCache.orders
-    : (()=>{ try { return JSON.parse(localStorage.getItem('lum_orders') || '[]'); } catch(e) { return []; } })();
+    : (()=>{ try { return JSON.parse(localStorage.getItem(window._sipKey('lum_orders')) || '[]'); } catch(e) { return []; } })();
   return raw;
 }
 function getLiveStock() {
   if(window._fbDashCache && window._fbDashCache.stock !== null) return window._fbDashCache.stock;
-  try { return JSON.parse(localStorage.getItem('lum_stock') || '[]'); } catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem(window._sipKey('lum_stock')) || '[]'); } catch(e) { return []; }
 }
 function getLiveCustomers() {
   if(window._fbDashCache && window._fbDashCache.customers !== null) return window._fbDashCache.customers;
-  try { return JSON.parse(localStorage.getItem('lum_customers') || '[]'); } catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem(window._sipKey('lum_customers')) || '[]'); } catch(e) { return []; }
 }
 function getLiveStaff() {
   if(window._fbDashCache && window._fbDashCache.staff !== null) return window._fbDashCache.staff;
-  try { return JSON.parse(localStorage.getItem('smStaff') || '[]'); } catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem(window._sipKey('smStaff')) || '[]'); } catch(e) { return []; }
 }
 function getLiveAttendance() {
-  try { return JSON.parse(localStorage.getItem('lum_attendance') || '[]'); } catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem(window._sipKey('lum_attendance')) || '[]'); } catch(e) { return []; }
 }
 
 function updateDashboardKPIs() {
@@ -14166,7 +14433,7 @@ function drawAnalyticsCharts(tab){
     const stock = getLiveStock();
     const lowCounts = days7.map((_,i)=>{ const d=new Date(); d.setDate(d.getDate()-(6-i)); return stock.filter(s=>Number(s.qty)<=(Number(s.alert||s.minQty||10))).length; });
     drawLineChart('chart-low-stock', days7, [{data:lowCounts,color:'#e74c3c',label:'Low Items'}], {min:0});
-    const purchaseData = months6.map((m,idx)=>{ try{const p=JSON.parse(localStorage.getItem('lum_purchases')||'[]'); const d=new Date(); d.setMonth(d.getMonth()-(5-idx)); const y=d.getFullYear(),mo=d.getMonth(); return p.filter(x=>{const xd=new Date(x.date||x.createdAt);return xd.getFullYear()===y&&xd.getMonth()===mo;}).reduce((s,x)=>s+(x.total||x.amount||0),0);}catch(e){return 0;} });
+    const purchaseData = months6.map((m,idx)=>{ try{const p=JSON.parse(localStorage.getItem(window._sipKey('lum_purchases'))||'[]'); const d=new Date(); d.setMonth(d.getMonth()-(5-idx)); const y=d.getFullYear(),mo=d.getMonth(); return p.filter(x=>{const xd=new Date(x.date||x.createdAt);return xd.getFullYear()===y&&xd.getMonth()===mo;}).reduce((s,x)=>s+(x.total||x.amount||0),0);}catch(e){return 0;} });
     drawLineChart('chart-purchase', months6, [{data:purchaseData,color:'#7f8c8d',label:'Purchase ₹'}]);
   }
   else if(tab==='staff'){
@@ -14219,7 +14486,7 @@ function drawAnalyticsCharts(tab){
     ]);
     try{
       const cats=['Food','Service','Wait Time','Billing','Hygiene'];
-      const complaints = JSON.parse(localStorage.getItem('lum_complaints')||'[]');
+      const complaints = JSON.parse(localStorage.getItem(window._sipKey('lum_complaints'))||'[]');
       const catData = cats.map(c=>complaints.filter(x=>(x.category||x.type||'').toLowerCase().includes(c.toLowerCase())).length);
       drawLineChart('chart-complaint-cat', cats, [{data:catData,color:'#e74c3c',label:'Complaints'}]);
     }catch(e){
@@ -14254,7 +14521,7 @@ async function smLoadFromFirebase() {
   try {
     const db = await _smFbInit();
     const { collection, getDocs, onSnapshot } = { collection: window.__col, getDocs: window.__getDocs, onSnapshot: window.__onSnapshot };
-    const snap = await getDocs(collection(db, 'staff'));
+    const snap = await getDocs(window._sipCol(db, 'staff'));
     if (snap.empty) { showToast('No staff found in cloud', 'warning'); return; }
     const loaded = [];
     snap.forEach(d => loaded.push(d.data()));
@@ -14267,7 +14534,7 @@ async function smLoadFromFirebase() {
       showToast(_si(45) + ' ' + loaded.length + ' staff loaded from cloud!', 'success');
     }
     if (!window._smFbListener) {
-      window._smFbListener = onSnapshot(collection(db, 'staff'), (snap2) => {
+      window._smFbListener = window.__onSnapshot(window._sipCol(db, 'staff'), (snap2) => {
         const updated = [];
         snap2.forEach(d => updated.push(d.data()));
         if (updated.length > 0) {
@@ -15173,7 +15440,7 @@ function attFaceSave(){
   const idx = allStaff.findIndex(s=>s.id===attFaceTargetId);
   if(idx<0){ showToast('Staff not found!','error'); return; }
   allStaff[idx].photo = attFacePhotoData;
-  try{ localStorage.setItem('smStaff', JSON.stringify(allStaff)); }catch(e){}
+  try{ localStorage.setItem(window._sipKey('smStaff'), JSON.stringify(allStaff)); }catch(e){}
   const staffName = allStaff[idx].name;
   document.getElementById('att-face-done-name').textContent = staffName + ' ka face register ho gaya!';
   document.getElementById('att-face-done-state').style.display='block';
@@ -15225,7 +15492,7 @@ async function initFirebaseCouponSync(){
     window.__couponUpdateDoc = updateDoc;
     window.__couponCollection = collection;
 
-    onSnapshot(collection(db, 'coupons'), snap => {
+    window.__onSnapshot(window._sipCol(db, 'coupons'), snap => {
       window._sipCouponsCache = [];
       snap.forEach(d => window._sipCouponsCache.push({...d.data(), id: d.id}));
       renderCouponCards();
@@ -15235,7 +15502,7 @@ async function initFirebaseCouponSync(){
     showToast(_si(48) + ' Coupons connected to cloud!','success');
   } catch(e) {
     console.error('Firebase coupon init error:', e);
-    window._sipCouponsCache = JSON.parse(localStorage.getItem('sip_coupons')||'[]');
+    window._sipCouponsCache = JSON.parse(localStorage.getItem(window._sipKey('sip_coupons'))||'[]');
     showToast('Offline — using local coupons','warning');
   }
 }
@@ -15249,15 +15516,16 @@ async function saveCoupons(arr){
       const writeBatch = window.__writeBatch; const doc = window.__doc;
     } catch(e){}
   }
-  try{ localStorage.setItem('sip_coupons', JSON.stringify(arr)); }catch(e){}
+  try{ localStorage.setItem(window._sipKey('sip_coupons'), JSON.stringify(arr)); }catch(e){}
 }
 
 async function saveSingleCouponToFirebase(coupon){
   if(window.__couponDb && window.__couponSetDoc && window.__couponDoc && window.__couponCollection){
     try {
+      const taggedCoupon = Object.assign({}, coupon, { restaurantId: window._sip_restaurantId || '' });
       await window.__couponSetDoc(
         window.__couponDoc(window.__couponDb, 'coupons', coupon.id),
-        coupon
+        taggedCoupon
       );
     } catch(e){ console.error('Firebase coupon save error:', e); }
   }
@@ -15330,7 +15598,7 @@ function couponSave(){
     arr.push(couponObj);
   }
   window._sipCouponsCache=arr;
-  try{ localStorage.setItem('sip_coupons',JSON.stringify(arr)); }catch(e){}
+  try{ localStorage.setItem(window._sipKey('sip_coupons'),JSON.stringify(arr)); }catch(e){}
   if(couponObj){ saveSingleCouponToFirebase(couponObj).then(function(){ showToast(_si(48) + ' Coupon saved to cloud!','success'); }).catch(function(){}); }
   couponCloseForm();
   renderCouponCards();
@@ -15340,7 +15608,7 @@ function couponDelete(id){
   if(!confirm('Ye coupon delete karna chahte ho?')) return;
   var arr=getCoupons().filter(function(x){return x.id!==id;});
   window._sipCouponsCache=arr;
-  try{ localStorage.setItem('sip_coupons',JSON.stringify(arr)); }catch(e){}
+  try{ localStorage.setItem(window._sipKey('sip_coupons'),JSON.stringify(arr)); }catch(e){}
   deleteCouponFromFirebase(id).then(function(){ showToast(_si(48) + ' Coupon also deleted from cloud!','info'); }).catch(function(){});
   renderCouponCards();
   showToast('Coupon deleted','info');
@@ -15352,7 +15620,7 @@ function couponToggle(id){
     arr[idx].active=!arr[idx].active;
     var updated=arr[idx];
     window._sipCouponsCache=arr;
-    try{ localStorage.setItem('sip_coupons',JSON.stringify(arr)); }catch(e){}
+    try{ localStorage.setItem(window._sipKey('sip_coupons'),JSON.stringify(arr)); }catch(e){}
     saveSingleCouponToFirebase(updated);
     renderCouponCards();
   }
@@ -15495,12 +15763,12 @@ document.getElementById('siplora-notif-hdr-icon').innerHTML=siploraSVG(28);
 window._menuCats = [];
 
 function mcatLoadFromStorage(){
-  try { window._menuCats = JSON.parse(localStorage.getItem('menu_categories') || '[]'); }
+  try { window._menuCats = JSON.parse(localStorage.getItem(window._sipKey('menu_categories')) || '[]'); }
   catch(e){ window._menuCats = []; }
 }
 
 function mcatSaveToStorage(){
-  try { localStorage.setItem('menu_categories', JSON.stringify(window._menuCats)); }
+  try { localStorage.setItem(window._sipKey('menu_categories'), JSON.stringify(window._menuCats)); }
   catch(e){}
 }
 
@@ -16472,7 +16740,7 @@ function menuFilterByCategory(btn, cat){
     var savedToFirebase = false;
     if(window.__fbDb && window.__addDoc && window.__col){
       try {
-        var docRef = await window.__addDoc(window.__col(window.__fbDb, 'orders'), newOrder);
+        var docRef = await window._sipAddDoc(window.__fbDb, 'orders', newOrder);
         newOrder._id = docRef.id;
         savedToFirebase = true;
       } catch(e){
@@ -16486,9 +16754,9 @@ function menuFilterByCategory(btn, cat){
       newOrder.createdAt = new Date().toISOString();
       if(typeof _liveOrders !== 'undefined') _liveOrders.push(newOrder);
       try {
-        var stored = JSON.parse(localStorage.getItem('lum_orders') || '[]');
+        var stored = JSON.parse(localStorage.getItem(window._sipKey('lum_orders')) || '[]');
         stored.push(newOrder);
-        localStorage.setItem('lum_orders', JSON.stringify(stored));
+        localStorage.setItem(window._sipKey('lum_orders'), JSON.stringify(stored));
       } catch(e){ console.warn('localStorage write error:', e); }
       // Refresh KDS page if open
       if(document.getElementById('page-kds') && document.getElementById('page-kds').classList.contains('active')){
@@ -16501,11 +16769,11 @@ function menuFilterByCategory(btn, cat){
     //    padhta hai aur KOT mein dikhata hai. Firebase save hone ke baad bhi zaroori hai.
     if(savedToFirebase){
       try {
-        var lumStored = JSON.parse(localStorage.getItem('lum_orders') || '[]');
+        var lumStored = JSON.parse(localStorage.getItem(window._sipKey('lum_orders')) || '[]');
         var alreadyExists = lumStored.find(function(x){ return x._id === newOrder._id; });
         if(!alreadyExists){
           lumStored.push(newOrder);
-          localStorage.setItem('lum_orders', JSON.stringify(lumStored));
+          localStorage.setItem(window._sipKey('lum_orders'), JSON.stringify(lumStored));
         }
       } catch(e){ console.warn('lum_orders sync error:', e); }
     }
@@ -16556,9 +16824,9 @@ function menuFilterByCategory(btn, cat){
   window.odSaveOrder = function(){
     if(_cart.length===0){ if(window.showToast) showToast('Cart empty hai!','warning'); return; }
     var cust = _getCustInfo();
-    var orders = JSON.parse(localStorage.getItem('od_saved_orders')||'[]');
+    var orders = JSON.parse(localStorage.getItem(window._sipKey('od_saved_orders'))||'[]');
     orders.push({cart:[..._cart], time:new Date().toISOString(), note:_specialNote, custName:cust.name, custPhone:cust.phone});
-    localStorage.setItem('od_saved_orders', JSON.stringify(orders));
+    localStorage.setItem(window._sipKey('od_saved_orders'), JSON.stringify(orders));
     if(window.showToast) showToast(_si(159) + ' Order save ho gaya!'+(cust.name?' — '+cust.name:''),'success');
   };
 
@@ -17127,7 +17395,7 @@ function odAnalyticsRefresh(){
 
   function odUpdateStats(){
     try{
-      var orders=(function(){try{return JSON.parse(localStorage.getItem('lum_orders')||'[]');}catch(e){return[];}})();
+      var orders=(function(){try{return JSON.parse(localStorage.getItem(window._sipKey('lum_orders'))||'[]');}catch(e){return[];}})();
       var today=new Date().toDateString();
       var now=new Date();
       var todayOrders=orders.filter(function(o){
@@ -17832,11 +18100,202 @@ function _ccOpenDashboard(role) {
   _ccRefreshStats();
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// CHEF PANEL FEATURE — Owner manages chef email+password here
+// Chef Panel app (chef.html) verifies login against 'cc_chefs' collection
+// ═══════════════════════════════════════════════════════════════════
+function showChefPanelAdmin(navEl) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (navEl) navEl.classList.add('active');
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pg = document.getElementById('page-chefpanel');
+  if (pg) pg.classList.add('active');
+  const titleEl = document.getElementById('page-title');
+  if (titleEl) titleEl.textContent = 'Chef Panel';
+  _cpStartChefsListener();
+  _cpRenderChefList();
+}
+
+function _cpGetChefs() {
+  try { return JSON.parse(localStorage.getItem(window._sipKey('cc_chefs')) || '[]'); } catch(e) { return []; }
+}
+function _cpSaveChefs(arr) {
+  try { localStorage.setItem(window._sipKey('cc_chefs'), JSON.stringify(arr)); } catch(e) {}
+  // Firebase sync — same project chef.html bhi use karta hai
+  (async function() {
+    try {
+      await window._siploraFirebaseLoad();
+      var db = window.__fbDb; if (!db) return;
+      var fb = window.__firebaseModules;
+      var batch = fb.writeBatch(db);
+      var oldSnap = await fb.getDocs(window._sipCol(db, 'cc_chefs'));
+      oldSnap.forEach(function(d) { batch.delete(d.ref); });
+      arr.forEach(function(chef) {
+        var ref = window._sipDoc(db, 'cc_chefs', chef.id);
+        batch.set(ref, chef);
+      });
+      await batch.commit();
+    } catch(e) { console.warn('[ChefPanel] Firebase sync failed:', e.message); }
+  })();
+}
+
+// ── Cloud se chefs load karo (startup + realtime) ──
+var _cpChefsUnsub = null;
+function _cpStartChefsListener() {
+  (async function() {
+    try {
+      await window._siploraFirebaseLoad();
+      var db = window.__fbDb; if (!db) return;
+      var fb = window.__firebaseModules;
+      if (_cpChefsUnsub) _cpChefsUnsub();
+      _cpChefsUnsub = fb.window.__onSnapshot(window._sipCol(db, 'cc_chefs'), function(snap) {
+        var arr = [];
+        snap.forEach(function(d) { arr.push(Object.assign({ id: d.id }, d.data())); });
+        try { localStorage.setItem(window._sipKey('cc_chefs'), JSON.stringify(arr)); } catch(e) {}
+        _cpRenderChefList();
+      });
+    } catch(e) { console.warn('[ChefPanel] Chefs listener failed:', e.message); }
+  })();
+}
+
+function cpToggleAddPwdVis() {
+  var inp = document.getElementById('cp-add-password');
+  if (!inp) return;
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function cpAddChef() {
+  var nameEl = document.getElementById('cp-add-name');
+  var emailEl = document.getElementById('cp-add-email');
+  var pwEl = document.getElementById('cp-add-password');
+  var errEl = document.getElementById('cp-add-error');
+  if (errEl) errEl.textContent = '';
+
+  var name = (nameEl && nameEl.value || '').trim();
+  var email = (emailEl && emailEl.value || '').trim();
+  var password = (pwEl && pwEl.value || '').trim();
+
+  if (!name || !email || !password) {
+    if (errEl) errEl.textContent = '❌ Naam, Email aur Password — teeno bharo';
+    return;
+  }
+  var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailPattern.test(email)) {
+    if (errEl) errEl.textContent = '❌ Sahi email daalo';
+    return;
+  }
+  if (password.length < 4) {
+    if (errEl) errEl.textContent = '❌ Password kam se kam 4 character ka ho';
+    return;
+  }
+
+  var chefs = _cpGetChefs();
+  var dup = chefs.find(function(c) { return (c.email || '').toLowerCase() === email.toLowerCase(); });
+  if (dup) {
+    if (errEl) errEl.textContent = '❌ Ye email pehle se ek chef ke liye use ho rahi hai';
+    return;
+  }
+
+  var newChef = {
+    id: 'chef_' + Date.now(),
+    name: name,
+    email: email,
+    password: password,
+    status: 'active',
+    createdAt: Date.now()
+  };
+  chefs.push(newChef);
+  _cpSaveChefs(chefs);
+  _cpRenderChefList();
+
+  nameEl.value = ''; emailEl.value = ''; pwEl.value = '';
+  if (typeof showToast === 'function') showToast('✅ Chef "' + name + '" add ho gaya', 'success');
+}
+
+function cpDeleteChef(chefId) {
+  if (!confirm('Ye chef delete karna hai? Wo ab login nahi kar payega.')) return;
+  var chefs = _cpGetChefs().filter(function(c) { return c.id !== chefId; });
+  _cpSaveChefs(chefs);
+  _cpRenderChefList();
+  if (typeof showToast === 'function') showToast('🗑️ Chef delete ho gaya', 'info');
+}
+
+function cpToggleChefStatus(chefId) {
+  var chefs = _cpGetChefs();
+  var chef = chefs.find(function(c) { return c.id === chefId; });
+  if (!chef) return;
+  chef.status = chef.status === 'active' ? 'inactive' : 'active';
+  _cpSaveChefs(chefs);
+  _cpRenderChefList();
+}
+
+function cpEditChefField(chefId, field, btnEl) {
+  var chefs = _cpGetChefs();
+  var chef = chefs.find(function(c) { return c.id === chefId; });
+  if (!chef) return;
+  var label = field === 'password' ? 'Naya password' : (field === 'email' ? 'Naya email' : 'Naya naam');
+  var val = prompt(label + ':', chef[field] || '');
+  if (val === null) return;
+  val = val.trim();
+  if (!val) return;
+  if (field === 'email') {
+    var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(val)) { alert('❌ Sahi email daalo'); return; }
+    var dup = chefs.find(function(c) { return c.id !== chefId && (c.email || '').toLowerCase() === val.toLowerCase(); });
+    if (dup) { alert('❌ Ye email pehle se use ho rahi hai'); return; }
+  }
+  if (field === 'password' && val.length < 4) { alert('❌ Password kam se kam 4 character ka ho'); return; }
+  chef[field] = val;
+  _cpSaveChefs(chefs);
+  _cpRenderChefList();
+  if (typeof showToast === 'function') showToast('✅ Update ho gaya', 'success');
+}
+
+function _cpRenderChefList() {
+  var listEl = document.getElementById('cp-chef-list');
+  var badgeEl = document.getElementById('cp-chef-count-badge');
+  if (!listEl) return;
+  var chefs = _cpGetChefs();
+  if (badgeEl) badgeEl.textContent = chefs.length + ' Chef' + (chefs.length === 1 ? '' : 's');
+
+  if (chefs.length === 0) {
+    listEl.innerHTML = '<div style="font-family:var(--font-ui);font-size:12px;color:rgba(245,240,232,0.3);text-align:center;padding:24px;border:1px dashed rgba(46,156,94,0.2);border-radius:12px">No chefs added yet — upar se add karo</div>';
+    return;
+  }
+
+  listEl.innerHTML = chefs.map(function(c) {
+    var statusColor = c.status === 'active' ? '#2ecc71' : '#888';
+    var statusLabel = c.status === 'active' ? 'Active' : 'Inactive';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(46,156,94,0.18);border-radius:12px;padding:14px 16px;flex-wrap:wrap">'
+      + '<div style="display:flex;align-items:center;gap:12px;min-width:200px">'
+        + '<div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,rgba(46,156,94,0.3),rgba(46,156,94,0.1));border:1.5px solid rgba(46,156,94,0.4);display:flex;align-items:center;justify-content:center;font-size:16px">👨‍🍳</div>'
+        + '<div>'
+          + '<div style="font-family:var(--font-ui);font-size:13px;font-weight:700;color:rgba(245,240,232,0.92)">' + _cpEsc(c.name) + '</div>'
+          + '<div style="font-family:var(--font-ui);font-size:10.5px;color:rgba(245,240,232,0.45)">' + _cpEsc(c.email) + '</div>'
+        + '</div>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+        + '<span style="font-family:var(--font-ui);font-size:9px;color:' + statusColor + ';background:' + statusColor + '22;border:1px solid ' + statusColor + '55;padding:3px 10px;border-radius:20px;cursor:pointer" onclick="cpToggleChefStatus(\'' + c.id + '\')" title="Click to toggle">' + statusLabel + '</span>'
+        + '<button onclick="cpEditChefField(\'' + c.id + '\',\'name\')" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:7px;padding:5px 10px;font-family:var(--font-ui);font-size:10px;color:rgba(245,240,232,0.7);cursor:pointer">✏️ Naam</button>'
+        + '<button onclick="cpEditChefField(\'' + c.id + '\',\'email\')" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:7px;padding:5px 10px;font-family:var(--font-ui);font-size:10px;color:rgba(245,240,232,0.7);cursor:pointer">✏️ Email</button>'
+        + '<button onclick="cpEditChefField(\'' + c.id + '\',\'password\')" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:7px;padding:5px 10px;font-family:var(--font-ui);font-size:10px;color:rgba(245,240,232,0.7);cursor:pointer">🔑 Password</button>'
+        + '<button onclick="cpDeleteChef(\'' + c.id + '\')" style="background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.35);border-radius:7px;padding:5px 10px;font-family:var(--font-ui);font-size:10px;color:#e74c3c;cursor:pointer">🗑️ Delete</button>'
+      + '</div>'
+    + '</div>';
+  }).join('');
+}
+
+function _cpEsc(str) {
+  var d = document.createElement('div');
+  d.textContent = str == null ? '' : String(str);
+  return d.innerHTML;
+}
+
 function _ccGetSettings() {
-  try { return JSON.parse(localStorage.getItem('cc_settings') || '{}'); } catch(e) { return {}; }
+  try { return JSON.parse(localStorage.getItem(window._sipKey('cc_settings')) || '{}'); } catch(e) { return {}; }
 }
 function _ccSaveSettings(obj) {
-  try { localStorage.setItem('cc_settings', JSON.stringify(obj)); } catch(e) {}
+  try { localStorage.setItem(window._sipKey('cc_settings'), JSON.stringify(obj)); } catch(e) {}
 }
 
 // ── Auto-initialize default owner credentials on first load ──
@@ -17927,7 +18386,7 @@ function _ccRefreshStats() {
   if (window._liveOrders && window._liveOrders.length > 0) {
     orders = window._liveOrders;
   } else {
-    try { orders = JSON.parse(localStorage.getItem('lum_orders') || '[]'); } catch(e) { orders = []; }
+    try { orders = JSON.parse(localStorage.getItem(window._sipKey('lum_orders')) || '[]'); } catch(e) { orders = []; }
   }
 
   // Get tables
@@ -18120,10 +18579,10 @@ function _ccRefreshStats() {
 // ── Captain Data Helpers ──────────────────────────────────────────────
 
 function _ccGetCaptains() {
-  try { return JSON.parse(localStorage.getItem('cc_captains') || '[]'); } catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem(window._sipKey('cc_captains')) || '[]'); } catch(e) { return []; }
 }
 function _ccSaveCaptains(arr) {
-  try { localStorage.setItem('cc_captains', JSON.stringify(arr)); } catch(e) {}
+  try { localStorage.setItem(window._sipKey('cc_captains'), JSON.stringify(arr)); } catch(e) {}
   // Firebase sync
   (async function() {
     try {
@@ -18132,10 +18591,10 @@ function _ccSaveCaptains(arr) {
       var fb = window.__firebaseModules;
       var batch = fb.writeBatch(db);
       // Delete old + rewrite all captains
-      var oldSnap = await fb.getDocs(fb.collection(db, 'captains'));
+      var oldSnap = await fb.getDocs(window._sipCol(db, 'captains'));
       oldSnap.forEach(function(d) { batch.delete(d.ref); });
       arr.forEach(function(cap) {
-        var ref = fb.doc(fb.collection(db, 'captains'), cap.id);
+        var ref = window._sipDoc(db, 'captains', cap.id);
         batch.set(ref, cap);
       });
       await batch.commit();
@@ -18152,11 +18611,11 @@ function _ccStartCaptainsListener() {
       var db = window.__fbDb; if (!db) return;
       var fb = window.__firebaseModules;
       if (_ccCaptainsUnsub) _ccCaptainsUnsub();
-      _ccCaptainsUnsub = fb.onSnapshot(fb.collection(db, 'captains'), function(snap) {
+      _ccCaptainsUnsub = fb.window.__onSnapshot(window._sipCol(db, 'captains'), function(snap) {
         var arr = [];
         snap.forEach(function(d) { arr.push(Object.assign({ id: d.id }, d.data())); });
         if (arr.length > 0) {
-          try { localStorage.setItem('cc_captains', JSON.stringify(arr)); } catch(e) {}
+          try { localStorage.setItem(window._sipKey('cc_captains'), JSON.stringify(arr)); } catch(e) {}
           _ccRenderAllCaptains();
           if (document.getElementById('captain-pin-screen') && document.getElementById('captain-pin-screen').style.display !== 'none') {
             _ccRenderPinScreenCaptains();
@@ -18185,20 +18644,19 @@ function ccSetRevenueFilter(f) {
 // ── Get Captain Bills ─────────────────────────────────────────────────
 
 function _ccGetCaptainBills(captainId) {
-  try { return JSON.parse(localStorage.getItem('cc_bills_' + captainId) || '[]'); } catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem(window._sipKey('cc_bills_') + captainId) || '[]'); } catch(e) { return []; }
 }
 function _ccSaveCaptainBill(captainId, billData) {
   // localStorage update
   var bills = _ccGetCaptainBills(captainId);
   bills.push(billData);
-  try { localStorage.setItem('cc_bills_' + captainId, JSON.stringify(bills)); } catch(e) {}
+  try { localStorage.setItem(window._sipKey('cc_bills_') + captainId, JSON.stringify(bills)); } catch(e) {}
   // Firebase sync
   (async function() {
     try {
       await window._siploraFirebaseLoad();
       var db = window.__fbDb; if (!db) return;
-      var fb = window.__firebaseModules;
-      await fb.addDoc(fb.collection(db, 'captainBills'), Object.assign({}, billData, {
+      await window._sipAddDoc(db, 'captainBills', Object.assign({}, billData, {
         captainId: captainId,
         savedAt: new Date().toISOString()
       }));
@@ -18214,7 +18672,7 @@ function _ccLoadCaptainBillsFromFirebase() {
       var db = window.__fbDb; if (!db) return;
       var fb = window.__firebaseModules;
       // Real-time listener for captainBills
-      fb.onSnapshot(fb.collection(db, 'captainBills'), function(snap) {
+      fb.window.__onSnapshot(window._sipCol(db, 'captainBills'), function(snap) {
         var byCapt = {};
         snap.forEach(function(d) {
           var b = d.data();
@@ -18224,7 +18682,7 @@ function _ccLoadCaptainBillsFromFirebase() {
           byCapt[cid].push(b);
         });
         Object.keys(byCapt).forEach(function(cid) {
-          try { localStorage.setItem('cc_bills_' + cid, JSON.stringify(byCapt[cid])); } catch(e) {}
+          try { localStorage.setItem(window._sipKey('cc_bills_') + cid, JSON.stringify(byCapt[cid])); } catch(e) {}
         });
         // Refresh captain cards if page is active
         if (document.getElementById('page-captain') && document.getElementById('page-captain').classList.contains('active')) {
@@ -18560,7 +19018,7 @@ function ccAddCaptain() {
       var db = window.__fbDb;
       if (!db) return;
       var fbMod = window.__firebaseModules;
-      await fbMod.addDoc(fbMod.collection(db, 'captains'), {
+      await window._sipAddDoc(db, 'captains', {
         name: newCap.name,
         phone: newCap.phone,
         area: newCap.area,
@@ -18809,9 +19267,9 @@ function ccGenerateBill(tableNum) {
   } else {
     // Legacy fallback
     var bills2 = [];
-    try { bills2 = JSON.parse(localStorage.getItem('lum_captain_bills') || '[]'); } catch(e) {}
+    try { bills2 = JSON.parse(localStorage.getItem(window._sipKey('lum_captain_bills')) || '[]'); } catch(e) {}
     bills2.push({ tableNum: tableNum, at: new Date().toISOString(), role: 'captain1', amount: 0 });
-    try { localStorage.setItem('lum_captain_bills', JSON.stringify(bills2)); } catch(e) {}
+    try { localStorage.setItem(window._sipKey('lum_captain_bills'), JSON.stringify(bills2)); } catch(e) {}
   }
 
   // Call existing bill function
@@ -18937,7 +19395,7 @@ function _ccUpdateLiveStatCards() {
     if (window._liveOrders && window._liveOrders.length > 0) {
       orders = window._liveOrders;
     } else {
-      try { orders = JSON.parse(localStorage.getItem('lum_orders') || '[]'); } catch(e) {}
+      try { orders = JSON.parse(localStorage.getItem(window._sipKey('lum_orders')) || '[]'); } catch(e) {}
     }
 
     function getAmt(o) { return Number(o.totalAmount||o.totalBilled||o.total||o.amount||0); }

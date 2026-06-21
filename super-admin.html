@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Siplora — Super Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --gold:#d4a843;--gold-light:#f0d060;--gold-dim:#9a7a28;
+  --cream:#f5f0e8;--dark:#0a0a0f;--dark2:#111118;--dark3:#1a1a25;--dark4:#22222f;
+  --glass:rgba(255,255,255,0.04);--glass-border:rgba(201,168,76,0.18);
+  --red:#c0392b;--green:#27ae60;
+  --font-royal:'Cormorant Garamond',serif;--font-ui:'Montserrat',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+
+/* ══ LOGIN SCREEN ══ */
+#login-screen{
+  position:fixed;inset:0;z-index:999999;
+  background:radial-gradient(circle at 20% 20%,rgba(212,168,67,0.10),transparent 50%),
+             radial-gradient(circle at 80% 80%,rgba(212,168,67,0.06),transparent 50%),#0a0a0f;
+  display:flex;align-items:center;justify-content:center;
+}
+#login-screen::before{content:'';position:fixed;inset:0;background-image:radial-gradient(circle,rgba(212,168,67,0.06) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;animation:bgdrift 20s linear infinite;}
+@keyframes bgdrift{from{background-position:0 0}to{background-position:40px 40px}}
+.login-card{width:92%;max-width:400px;background:#111118;border:1px solid rgba(212,168,67,0.22);border-radius:22px;padding:42px 34px 36px;box-shadow:0 40px 100px rgba(0,0,0,0.7);position:relative;animation:cardIn 0.5s cubic-bezier(0.22,1,0.36,1) both;z-index:1;}
+@keyframes cardIn{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+.login-card::before{content:'';position:absolute;top:0;left:15%;right:15%;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);border-radius:2px;}
+.logo-wrap{text-align:center;margin-bottom:30px}
+.l-crown{font-size:30px;line-height:1;margin-bottom:8px}
+.l-brand{font-family:var(--font-royal);font-size:28px;letter-spacing:4px;color:var(--gold-light);font-weight:500}
+.l-sub{font-size:9px;letter-spacing:3px;color:var(--gold-dim);margin-top:4px;text-transform:uppercase}
+.lfield{margin-bottom:14px}
+.lfield label{display:block;font-size:9.5px;letter-spacing:2px;color:rgba(245,240,232,0.4);text-transform:uppercase;margin-bottom:6px}
+.lfield input{width:100%;padding:12px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(212,168,67,0.18);border-radius:10px;color:var(--cream);font-family:var(--font-ui);font-size:13px;outline:none;transition:border-color 0.2s;}
+.lfield input:focus{border-color:var(--gold);background:rgba(212,168,67,0.04)}
+.lfield input::placeholder{color:rgba(245,240,232,0.18)}
+.l-btn{width:100%;margin-top:6px;padding:14px;border:none;border-radius:10px;cursor:pointer;background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:var(--dark);font-family:var(--font-ui);font-weight:700;font-size:13px;letter-spacing:1px;transition:filter 0.2s,transform 0.1s;box-shadow:0 4px 20px rgba(212,168,67,0.25);}
+.l-btn:hover{filter:brightness(1.1)}.l-btn:active{transform:scale(0.98)}
+.l-err{margin-top:14px;padding:11px 14px;border-radius:9px;background:rgba(192,57,43,0.1);border:1px solid rgba(192,57,43,0.28);color:#e87b6f;font-size:12px;text-align:center;display:none;animation:shake 0.35s ease;}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+/* ══ MAIN APP ══ */
+body{background:radial-gradient(circle at 15% 0%,rgba(212,168,67,0.08),transparent 45%),radial-gradient(circle at 100% 100%,rgba(212,168,67,0.05),transparent 50%),var(--dark);color:var(--cream);font-family:var(--font-ui);min-height:100vh;display:flex;}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:rgba(212,168,67,0.25);border-radius:4px}
+
+/* Logout btn in top bar */
+.logout-pill{position:fixed;top:14px;right:90px;font-size:10.5px;letter-spacing:1px;padding:6px 14px;border-radius:20px;background:rgba(192,57,43,0.12);border:1px solid rgba(192,57,43,0.3);color:#e87b6f;z-index:500;cursor:pointer;font-family:var(--font-ui);}
+.logout-pill:hover{background:rgba(192,57,43,0.22)}
+
+.rail{width:340px;flex-shrink:0;background:var(--dark2);border-right:1px solid var(--glass-border);display:flex;flex-direction:column;height:100vh;position:sticky;top:0;}
+.rail-head{padding:26px 22px 18px;border-bottom:1px solid var(--glass-border)}
+.crown{font-size:22px;line-height:1;margin-bottom:6px}
+.brand{font-family:var(--font-royal);font-size:24px;letter-spacing:3px;color:var(--gold-light);font-weight:500}
+.brand-sub{font-size:9px;letter-spacing:3px;color:var(--gold-dim);margin-top:2px;text-transform:uppercase}
+.add-box{padding:18px 22px;border-bottom:1px solid var(--glass-border);display:flex;flex-direction:column;gap:8px}
+.add-box input{width:100%;padding:10px 12px;background:rgba(255,255,255,0.04);border:1px solid var(--glass-border);border-radius:8px;color:var(--cream);font-family:var(--font-ui);font-size:12.5px;outline:none;}
+.add-box input:focus{border-color:var(--gold)}
+.add-box input::placeholder{color:rgba(245,240,232,0.3)}
+.add-box button{margin-top:2px;padding:11px;border:none;border-radius:8px;cursor:pointer;background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:var(--dark);font-family:var(--font-ui);font-weight:600;font-size:12.5px;letter-spacing:0.5px;transition:filter 0.2s;}
+.add-box button:hover{filter:brightness(1.1)}
+.id-hint{font-size:10px;color:rgba(245,240,232,0.35);margin-top:-4px}
+.search-wrap{padding:12px 22px}
+.search-wrap input{width:100%;padding:9px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border);border-radius:20px;color:var(--cream);font-family:var(--font-ui);font-size:12px;outline:none;}
+.rest-list{flex:1;overflow-y:auto;padding:4px 14px 20px}
+.rest-card{padding:13px 14px;border-radius:10px;margin-bottom:6px;cursor:pointer;border:1px solid transparent;transition:all 0.15s;display:flex;align-items:center;gap:10px;}
+.rest-card:hover{background:rgba(255,255,255,0.03)}
+.rest-card.sel{background:rgba(212,168,67,0.1);border-color:rgba(212,168,67,0.35)}
+.rest-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.rest-dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
+.rest-dot.off{background:var(--red);box-shadow:0 0 6px var(--red)}
+.rest-info{flex:1;min-width:0}
+.rest-name{font-size:13px;color:var(--cream);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rest-id{font-size:10px;color:rgba(245,240,232,0.35);margin-top:1px}
+.rest-empty{padding:30px 18px;text-align:center;font-size:12px;color:rgba(245,240,232,0.3);line-height:1.7}
+.main{flex:1;height:100vh;overflow-y:auto;padding:36px 44px}
+.empty{height:80%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(245,240,232,0.3);text-align:center;gap:8px;}
+.empty .big{font-size:34px}
+.empty .sub{font-family:var(--font-royal);font-size:20px;color:rgba(245,240,232,0.4);letter-spacing:1px}
+.detail-head{display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap;padding-bottom:22px;border-bottom:1px solid var(--glass-border)}
+.detail-name{font-family:var(--font-royal);font-size:30px;color:var(--cream);letter-spacing:1px;font-weight:500}
+.detail-id{font-size:11px;color:var(--gold-dim);letter-spacing:1px;margin-top:2px}
+.breaker{margin-left:auto;display:flex;align-items:center;gap:14px;background:var(--dark3);border:1px solid var(--glass-border);border-radius:14px;padding:12px 18px;}
+.breaker-label{font-size:9.5px;letter-spacing:2px;color:rgba(245,240,232,0.5);text-transform:uppercase}
+.breaker-switch{position:relative;width:54px;height:30px;border-radius:8px;cursor:pointer;background:var(--dark4);border:1px solid rgba(255,255,255,0.08);transition:background 0.25s;}
+.breaker-switch.on{background:linear-gradient(135deg,rgba(39,174,96,0.35),rgba(39,174,96,0.15));border-color:var(--green)}
+.breaker-switch.off{background:linear-gradient(135deg,rgba(192,57,43,0.35),rgba(192,57,43,0.15));border-color:var(--red)}
+.breaker-knob{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:6px;background:var(--cream);transition:left 0.25s,background 0.25s;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;}
+.breaker-switch.on .breaker-knob{left:29px;background:var(--green);color:#fff}
+.breaker-switch.off .breaker-knob{left:3px;background:var(--red);color:#fff}
+.del-btn{padding:10px 16px;border-radius:10px;border:1px solid rgba(192,57,43,0.35);background:rgba(192,57,43,0.1);color:#e87b6f;font-family:var(--font-ui);font-size:11.5px;cursor:pointer;letter-spacing:0.5px;}
+.del-btn:hover{background:rgba(192,57,43,0.2)}
+.stats-row{display:flex;gap:14px;margin:22px 0 8px;flex-wrap:wrap}
+.stat-pill{background:var(--glass);border:1px solid var(--glass-border);border-radius:10px;padding:10px 16px;font-size:12px;color:rgba(245,240,232,0.7);}
+.stat-pill b{color:var(--gold-light);font-weight:600}
+.bulk-actions{margin-left:auto;display:flex;gap:8px}
+.bulk-btn{padding:9px 14px;border-radius:8px;border:1px solid var(--glass-border);background:rgba(255,255,255,0.03);color:rgba(245,240,232,0.65);font-size:11px;cursor:pointer;font-family:var(--font-ui);}
+.bulk-btn:hover{border-color:var(--gold-dim);color:var(--gold-light)}
+.sections{display:flex;flex-direction:column;gap:26px;margin-top:18px;padding-bottom:60px}
+.section-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.section-title{font-size:10px;letter-spacing:2.5px;color:var(--gold-dim);text-transform:uppercase}
+.section-line{flex:1;height:1px;background:var(--glass-border)}
+.section-mini-btn{font-size:10px;color:rgba(245,240,232,0.4);cursor:pointer;letter-spacing:0.5px;border:1px solid transparent;padding:3px 8px;border-radius:6px;}
+.section-mini-btn:hover{color:var(--gold-light);border-color:var(--glass-border)}
+.feature-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.feature-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--glass);border:1px solid var(--glass-border);border-radius:10px;padding:12px 14px;transition:border-color 0.2s;}
+.feature-row.disabled-row{opacity:0.55}
+.feature-name{font-size:12.5px;color:var(--cream)}
+.switch{position:relative;display:inline-block;width:38px;height:21px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.switch .slider{position:absolute;cursor:pointer;inset:0;background:var(--dark4);border:1px solid rgba(255,255,255,0.1);border-radius:20px;transition:0.2s;}
+.switch .slider:before{content:'';position:absolute;height:15px;width:15px;left:2px;bottom:2px;background:rgba(245,240,232,0.6);border-radius:50%;transition:0.2s;}
+.switch input:checked + .slider{background:rgba(212,168,67,0.25);border-color:var(--gold)}
+.switch input:checked + .slider:before{transform:translateX(16px);background:var(--gold-light)}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--dark3);border:1px solid var(--glass-border);border-radius:10px;padding:13px 18px;font-size:12.5px;color:var(--cream);box-shadow:0 12px 40px rgba(0,0,0,0.5);z-index:99999;opacity:0;transform:translateY(10px);transition:0.25s;}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.success{border-color:rgba(39,174,96,0.4)}.toast.error{border-color:rgba(192,57,43,0.4)}
+.conn-pill{position:fixed;top:14px;right:24px;font-size:10.5px;letter-spacing:1px;padding:6px 12px;border-radius:20px;background:var(--dark3);border:1px solid var(--glass-border);color:rgba(245,240,232,0.5);z-index:500;}
+.conn-pill.ok{color:var(--green);border-color:rgba(39,174,96,0.35)}
+@media(max-width:760px){body{flex-direction:column}.rail{width:100%;height:auto;position:relative;max-height:50vh}.main{height:auto;padding:24px}}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN SCREEN ══ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="logo-wrap">
+      <div class="l-crown">👑</div>
+      <div class="l-brand">SIPLORA</div>
+      <div class="l-sub">Super Admin Login</div>
+    </div>
+    <div class="lfield">
+      <label>Email</label>
+      <input id="l-email" type="email" placeholder="superadmin@siplora.com"/>
+    </div>
+    <div class="lfield">
+      <label>Password</label>
+      <input id="l-pass" type="password" placeholder="••••••••"/>
+    </div>
+    <button class="l-btn" id="login-btn">Login → Super Panel Kholo</button>
+    <div class="l-err" id="l-err">❌ Email ya password galat hai</div>
+  </div>
+</div>
+
+<!-- ══ MAIN APP (login ke baad dikhega) ══ -->
+<div class="conn-pill" id="conn-pill" style="display:none">Connecting…</div>
+<button class="logout-pill" id="logout-btn" style="display:none">⬅ Logout</button>
+
+<aside class="rail" id="rail" style="display:none">
+  <div class="rail-head">
+    <div class="crown">👑</div>
+    <div class="brand">SIPLORA</div>
+    <div class="brand-sub">Super Admin Panel</div>
+  </div>
+  <div class="add-box">
+    <input id="new-name" type="text" placeholder="Restaurant / Cafe ka naam"/>
+    <input id="new-id"   type="text" placeholder="unique-id (auto-fill hoga)"/>
+    <input id="new-email" type="email" placeholder="Login Email (restaurant ka)"/>
+    <input id="new-pass" type="password" placeholder="Login Password"/>
+    <div class="id-hint">Email & password se billing dashboard khulega</div>
+    <button id="add-btn">+ Add Restaurant</button>
+  </div>
+  <div class="search-wrap">
+    <input id="search-box" type="text" placeholder="🔍 Search restaurant..."/>
+  </div>
+  <div class="rest-list" id="rest-list">
+    <div class="rest-empty">Koi restaurant abhi add nahi hua.<br>Upar se ek add karo.</div>
+  </div>
+</aside>
+
+<main class="main" id="main-panel" style="display:none">
+  <div class="empty" id="empty-state">
+    <div class="big">🏠</div>
+    <div class="sub">Restaurant select karo ya naya add karo</div>
+  </div>
+
+  <div class="detail" id="detail" style="display:none">
+    <div class="detail-head">
+      <div>
+        <div class="detail-name" id="d-name">—</div>
+        <div class="detail-id" id="d-id">—</div>
+        <div class="detail-id" id="d-email" style="color:rgba(245,240,232,0.45);margin-top:3px">—</div>
+      </div>
+      <div class="breaker">
+        <span class="breaker-label">Restaurant Access</span>
+        <div class="breaker-switch" id="master-switch">
+          <div class="breaker-knob" id="master-knob"></div>
+        </div>
+      </div>
+      <button class="del-btn" id="delete-btn">Delete Restaurant</button>
+      <button class="del-btn" id="edit-cred-btn" style="border-color:rgba(212,168,67,0.35);background:rgba(212,168,67,0.08);color:#d4a843">Edit Email/Pass</button>
+    </div>
+
+    <!-- Edit Credentials Modal -->
+    <div id="cred-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(5,3,15,0.92);backdrop-filter:blur(8px);align-items:center;justify-content:center">
+      <div style="background:#111118;border:1px solid rgba(212,168,67,0.3);border-radius:18px;width:92%;max-width:380px;padding:30px 26px;font-family:Montserrat,Arial,sans-serif">
+        <div style="font-size:18px;color:#f0d060;margin-bottom:18px;font-family:serif">Login Details Edit Karo</div>
+        <input id="edit-email" type="email" placeholder="Naya Email" style="width:100%;padding:11px 13px;background:rgba(255,255,255,0.05);border:1px solid rgba(212,168,67,0.3);border-radius:9px;color:#f5f0e8;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:10px"/>
+        <input id="edit-pass" type="password" placeholder="Naya Password (khali chhodo agar change nahi karna)" style="width:100%;padding:11px 13px;background:rgba(255,255,255,0.05);border:1px solid rgba(212,168,67,0.3);border-radius:9px;color:#f5f0e8;font-size:13px;outline:none;box-sizing:border-box;margin-bottom:16px"/>
+        <div style="display:flex;gap:10px">
+          <button id="cred-save-btn" style="flex:1;padding:12px;background:linear-gradient(135deg,#d4a843,#9a7a28);border:none;border-radius:9px;color:#0a0a0f;font-weight:600;font-size:13px;cursor:pointer">Save</button>
+          <button id="cred-cancel-btn" style="flex:1;padding:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:9px;color:#f5f0e8;font-size:13px;cursor:pointer">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-pill" id="stat-pill">— / — features ON</div>
+      <div class="bulk-actions">
+        <button class="bulk-btn" id="enable-all">Enable All</button>
+        <button class="bulk-btn" id="disable-all">Disable All</button>
+      </div>
+    </div>
+    <div class="sections" id="sections"></div>
+  </div>
+</main>
+
+<script type="module">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, getDoc,
+  onSnapshot, serverTimestamp, getDocs
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* ── Super Admin Credentials ── */
+const SUPER_EMAIL = "superadmin@siplora.com";
+const SUPER_PASS  = "Siplora@2025";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBsRxWD2R1GkSEM-duLwQe3jAi7yw5vvvM",
+  authDomain: "restaurant-system-beec1.firebaseapp.com",
+  projectId: "restaurant-system-beec1",
+  storageBucket: "restaurant-system-beec1.firebasestorage.app",
+  messagingSenderId: "106757122327",
+  appId: "1:106757122327:web:723d8dacbba3087b686f52"
+};
+
+const RESTAURANTS_COL = "admin_restaurants";
+const FEATURES_COL    = "admin_restaurant_features";
+
+const SECTIONS = [
+  { title:"Overview",            keys:["dashboard","analytics","reports"] },
+  { title:"Operations",          keys:["billing","tables","qr-tables","menu","orders","kds","inventory"] },
+  { title:"People",              keys:["staff","attendance","tasks","customers","customer-history","loyalty"] },
+  { title:"System",              keys:["ai","security","events","tax","settings"] },
+  { title:"New Features",        keys:["quotation","supplier","delivery","birthday","captain","ai-assist","esalary","daily-owner-report","staff-performance","smart-reorder","qr-feedback","recipe-cost"] },
+  { title:"Special Unit",        keys:["order-desk"] },
+  { title:"AI Intelligence",     keys:["ai-forecast","smart-upsell","daily-pl"] },
+  { title:"Customer Experience", keys:["reservation","online-payment","todays-offer","rekruters"] },
+  { title:"Legal",               keys:["terms"] }
+];
+const LABELS = {
+  dashboard:"Dashboard",analytics:"Analytics",reports:"Reports",
+  billing:"Billing",tables:"Table Management","qr-tables":"QR Codes",
+  menu:"Menu Manager",orders:"Orders",kds:"Kitchen Display",inventory:"Inventory",
+  staff:"Staff",attendance:"Attendance",tasks:"Tasks",customers:"Customers",
+  "customer-history":"Customer History",loyalty:"Loyalty",
+  ai:"AI System",security:"AI Security",events:"Events",tax:"Tax & GST",settings:"Settings",
+  quotation:"Quotation",supplier:"Supplier",delivery:"Online Delivery",birthday:"Birthday CRM",
+  captain:"Captain Command","ai-assist":"Siplora AI",esalary:"E-Salary",
+  "daily-owner-report":"Daily Owner Report","staff-performance":"Staff Performance",
+  "smart-reorder":"Smart Reorder","qr-feedback":"QR Feedback & Ratings",
+  "recipe-cost":"Recipe Cost Calculator","order-desk":"Order Desk",
+  "ai-forecast":"AI Sales Forecast","smart-upsell":"Smart Upsell Engine",
+  "daily-pl":"Daily P&L Statement",reservation:"Reservation & Waitlist",
+  "online-payment":"Online Payment","todays-offer":"Today's Offer",
+  rekruters:"My Rekruters",terms:"Terms & Conditions"
+};
+const ALL_KEYS = SECTIONS.flatMap(s => s.keys);
+
+const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+let restaurants = [];
+let selectedId = null;
+let currentFeatures = {};
+let unsubFeatures = null;
+let nameTouchedId = false;
+
+/* ── Toast ── */
+function showToast(msg, type){
+  const t = document.createElement("div");
+  t.className = "toast "+(type||""); t.textContent = msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(()=>t.classList.add("show"));
+  setTimeout(()=>{ t.classList.remove("show"); setTimeout(()=>t.remove(),300); },2600);
+}
+
+/* ══ LOGIN ══ */
+const loginScreen = document.getElementById("login-screen");
+
+function showApp(){
+  loginScreen.style.display = "none";
+  document.getElementById("conn-pill").style.display  = "";
+  document.getElementById("logout-btn").style.display = "";
+  document.getElementById("rail").style.display       = "";
+  document.getElementById("main-panel").style.display = "";
+  initFirebase();
+}
+function showLogin(){
+  loginScreen.style.display = "flex";
+  document.getElementById("conn-pill").style.display  = "none";
+  document.getElementById("logout-btn").style.display = "none";
+  document.getElementById("rail").style.display       = "none";
+  document.getElementById("main-panel").style.display = "none";
+}
+
+if(sessionStorage.getItem("siplora_super_auth")==="1") showApp();
+
+document.getElementById("login-btn").addEventListener("click",()=>{
+  const email = document.getElementById("l-email").value.trim();
+  const pass  = document.getElementById("l-pass").value.trim();
+  const err   = document.getElementById("l-err");
+  err.style.display = "none";
+  if(email===SUPER_EMAIL && pass===SUPER_PASS){
+    sessionStorage.setItem("siplora_super_auth","1");
+    showApp();
+  } else {
+    err.style.display="block";
+    err.style.animation="none";
+    requestAnimationFrame(()=>{ err.style.animation="shake 0.35s ease"; });
+  }
+});
+["l-email","l-pass"].forEach(id=>{
+  document.getElementById(id).addEventListener("keydown",e=>{ if(e.key==="Enter") document.getElementById("login-btn").click(); });
+});
+document.getElementById("logout-btn").addEventListener("click",()=>{
+  sessionStorage.removeItem("siplora_super_auth"); showLogin();
+});
+
+/* ══ FIREBASE INIT ══ */
+function initFirebase(){
+  /* Live restaurant list */
+  onSnapshot(collection(db, RESTAURANTS_COL), snap => {
+    restaurants = [];
+    snap.forEach(d => restaurants.push({ id:d.id, ...d.data() }));
+    restaurants.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+    renderRestaurantList();
+    document.getElementById("conn-pill").textContent = "● Connected";
+    document.getElementById("conn-pill").classList.add("ok");
+    if(selectedId){
+      const r = restaurants.find(x=>x.id===selectedId);
+      if(r){ document.getElementById("d-name").textContent=r.name; setMasterSwitch(r.active!==false); }
+    }
+  }, err=>{ console.error(err); document.getElementById("conn-pill").textContent="Connection error"; });
+}
+
+/* ── Slugify ── */
+function slugify(str){ return str.toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"")||"rest"; }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ── Auto ID ── */
+const nameInput  = document.getElementById("new-name");
+const idInput    = document.getElementById("new-id");
+const emailInput = document.getElementById("new-email");
+const passInput  = document.getElementById("new-pass");
+nameInput.addEventListener("input",()=>{ if(!nameTouchedId) idInput.value=slugify(nameInput.value); });
+idInput.addEventListener("input",()=>{ nameTouchedId=true; });
+
+/* ── Add Restaurant ── */
+document.getElementById("add-btn").addEventListener("click", async()=>{
+  const name  = nameInput.value.trim();
+  const email = emailInput.value.trim();
+  const pass  = passInput.value.trim();
+  let id      = idInput.value.trim() || slugify(name);
+  id = slugify(id);
+  if(!name)  { showToast("Restaurant ka naam daalo","error"); return; }
+  if(!email) { showToast("Email daalo","error"); return; }
+  if(!pass||pass.length<4){ showToast("Password kam se kam 4 characters ka hona chahiye","error"); return; }
+  const existing = await getDoc(doc(db,RESTAURANTS_COL,id));
+  if(existing.exists()){ showToast("Yeh ID already use ho rahi hai — alag ID try karo","error"); return; }
+  const allSnap = await getDocs(collection(db,RESTAURANTS_COL));
+  let emailExists=false;
+  allSnap.forEach(d=>{ if(d.data().email===email) emailExists=true; });
+  if(emailExists){ showToast("Yeh email already kisi aur restaurant se linked hai","error"); return; }
+  const def={}; ALL_KEYS.forEach(k=>def[k]=true);
+  try {
+    await setDoc(doc(db,RESTAURANTS_COL,id),{name,email,password:pass,active:true,createdAt:serverTimestamp()});
+    await setDoc(doc(db,FEATURES_COL,id),def);
+    showToast(name+" add ho gaya!","success");
+    nameInput.value=""; idInput.value=""; emailInput.value=""; passInput.value=""; nameTouchedId=false;
+    selectRestaurant(id);
+  } catch(e){ console.error(e); showToast("Add karne me error aaya","error"); }
+});
+
+document.getElementById("search-box").addEventListener("input", renderRestaurantList);
+
+/* ── Restaurant List ── */
+function renderRestaurantList(){
+  const list = document.getElementById("rest-list");
+  const q = (document.getElementById("search-box").value||"").toLowerCase();
+  const filtered = restaurants.filter(r=>(r.name||"").toLowerCase().includes(q)||r.id.includes(q));
+  if(!filtered.length){ list.innerHTML='<div class="rest-empty">Koi restaurant nahi mila.</div>'; return; }
+  list.innerHTML = filtered.map(r=>`
+    <div class="rest-card ${r.id===selectedId?"sel":""}" data-id="${r.id}">
+      <div class="rest-dot ${r.active!==false?"on":"off"}"></div>
+      <div class="rest-info">
+        <div class="rest-name">${escapeHtml(r.name||r.id)}</div>
+        <div class="rest-id">${r.email?escapeHtml(r.email):"#"+r.id}</div>
+      </div>
+    </div>
+  `).join("");
+  list.querySelectorAll(".rest-card").forEach(card=>{
+    card.addEventListener("click",()=>selectRestaurant(card.getAttribute("data-id")));
+  });
+}
+
+/* ── Select Restaurant ── */
+function selectRestaurant(id){
+  selectedId=id;
+  const r=restaurants.find(x=>x.id===id);
+  if(!r) return;
+  document.getElementById("empty-state").style.display="none";
+  document.getElementById("detail").style.display="block";
+  document.getElementById("d-name").textContent=r.name;
+  document.getElementById("d-id").textContent="#"+id;
+  document.getElementById("d-email").textContent=r.email?"📧 "+r.email:"Email nahi set hua";
+  setMasterSwitch(r.active!==false);
+  renderRestaurantList();
+  if(unsubFeatures) unsubFeatures();
+  unsubFeatures=onSnapshot(doc(db,FEATURES_COL,id),snap=>{
+    currentFeatures=snap.exists()?snap.data():{};
+    renderSections();
+    updateStats();
+  });
+}
+
+/* ── Master Switch ── */
+function setMasterSwitch(on){
+  const sw=document.getElementById("master-switch");
+  sw.classList.toggle("on",on); sw.classList.toggle("off",!on);
+}
+document.getElementById("master-switch").addEventListener("click",async()=>{
+  if(!selectedId) return;
+  const r=restaurants.find(x=>x.id===selectedId);
+  const newVal=!(r.active!==false);
+  try {
+    await updateDoc(doc(db,RESTAURANTS_COL,selectedId),{active:newVal});
+    showToast(newVal?"Restaurant access ON kar diya":"Restaurant access OFF kar diya",newVal?"success":"error");
+  } catch(e){ console.error(e); showToast("Update fail hua","error"); }
+});
+
+/* ── Edit Credentials ── */
+document.getElementById("edit-cred-btn").addEventListener("click",()=>{
+  const r=restaurants.find(x=>x.id===selectedId);
+  if(!r) return;
+  document.getElementById("edit-email").value=r.email||"";
+  document.getElementById("edit-pass").value="";
+  const m=document.getElementById("cred-modal");
+  m.style.display="flex";
+});
+document.getElementById("cred-cancel-btn").addEventListener("click",()=>{ document.getElementById("cred-modal").style.display="none"; });
+document.getElementById("cred-save-btn").addEventListener("click",async()=>{
+  const newEmail=document.getElementById("edit-email").value.trim();
+  const newPass=document.getElementById("edit-pass").value.trim();
+  if(!newEmail){ showToast("Email daalo","error"); return; }
+  const payload={email:newEmail};
+  if(newPass){ if(newPass.length<4){ showToast("Password kam se kam 4 characters ka hona chahiye","error"); return; } payload.password=newPass; }
+  try {
+    await updateDoc(doc(db,RESTAURANTS_COL,selectedId),payload);
+    showToast("Credentials update ho gaye!","success");
+    document.getElementById("cred-modal").style.display="none";
+  } catch(e){ console.error(e); showToast("Update fail hua","error"); }
+});
+
+/* ── Delete ── */
+document.getElementById("delete-btn").addEventListener("click",async()=>{
+  if(!selectedId) return;
+  const r=restaurants.find(x=>x.id===selectedId);
+  if(!confirm(`"${r.name}" ko permanently delete karein? Ye undo nahi ho sakta.`)) return;
+  try {
+    await deleteDoc(doc(db,RESTAURANTS_COL,selectedId));
+    await deleteDoc(doc(db,FEATURES_COL,selectedId));
+    showToast("Restaurant delete ho gaya","success");
+    selectedId=null;
+    document.getElementById("detail").style.display="none";
+    document.getElementById("empty-state").style.display="flex";
+    if(unsubFeatures){ unsubFeatures(); unsubFeatures=null; }
+  } catch(e){ console.error(e); showToast("Delete fail hua","error"); }
+});
+
+/* ── Feature Sections ── */
+function renderSections(){
+  const wrap=document.getElementById("sections");
+  wrap.innerHTML=SECTIONS.map(sec=>`
+    <div class="section" data-section="${sec.title}">
+      <div class="section-head">
+        <div class="section-title">${sec.title}</div>
+        <div class="section-line"></div>
+        <div class="section-mini-btn" data-act="on"  data-keys="${sec.keys.join(",")}">Enable section</div>
+        <div class="section-mini-btn" data-act="off" data-keys="${sec.keys.join(",")}">Disable section</div>
+      </div>
+      <div class="feature-grid">
+        ${sec.keys.map(k=>featureRowHtml(k)).join("")}
+      </div>
+    </div>
+  `).join("");
+
+  wrap.querySelectorAll(".switch input").forEach(inp=>{
+    inp.addEventListener("change",async()=>{
+      const key=inp.getAttribute("data-key");
+      try { await updateDoc(doc(db,FEATURES_COL,selectedId),{[key]:inp.checked}); }
+      catch(e){ console.error(e); showToast("Update fail hua","error"); }
+    });
+  });
+  wrap.querySelectorAll(".section-mini-btn").forEach(btn=>{
+    btn.addEventListener("click",async()=>{
+      const keys=btn.getAttribute("data-keys").split(",");
+      const val=btn.getAttribute("data-act")==="on";
+      const payload={}; keys.forEach(k=>payload[k]=val);
+      try { await updateDoc(doc(db,FEATURES_COL,selectedId),payload); }
+      catch(e){ console.error(e); showToast("Update fail hua","error"); }
+    });
+  });
+}
+
+function featureRowHtml(key){
+  const enabled=currentFeatures[key]!==false;
+  return `
+    <div class="feature-row ${enabled?"":"disabled-row"}">
+      <span class="feature-name">${LABELS[key]||key}</span>
+      <label class="switch">
+        <input type="checkbox" data-key="${key}" ${enabled?"checked":""}/>
+        <span class="slider"></span>
+      </label>
+    </div>`;
+}
+
+function updateStats(){
+  const on=ALL_KEYS.filter(k=>currentFeatures[k]!==false).length;
+  document.getElementById("stat-pill").innerHTML=`<b>${on}</b> / ${ALL_KEYS.length} features ON`;
+}
+
+/* ── Enable / Disable All ── */
+document.getElementById("enable-all").addEventListener("click",async()=>{
+  if(!selectedId) return;
+  const p={}; ALL_KEYS.forEach(k=>p[k]=true);
+  await updateDoc(doc(db,FEATURES_COL,selectedId),p);
+  showToast("Saare features enable kar diye","success");
+});
+document.getElementById("disable-all").addEventListener("click",async()=>{
+  if(!selectedId) return;
+  if(!confirm("Sach me SAARE features disable karna hai is restaurant ke liye?")) return;
+  const p={}; ALL_KEYS.forEach(k=>p[k]=false);
+  await updateDoc(doc(db,FEATURES_COL,selectedId),p);
+  showToast("Saare features disable kar diye","error");
+});
+</script>
+</body>
+</html>

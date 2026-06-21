@@ -2945,6 +2945,21 @@ window.__onSnapshot     = onSnapshot;
 window.__serverTimestamp= serverTimestamp;
 window.__getDocs        = getDocs;
 
+// ── Restaurant-scoped collection helper ──
+// window._sip_restaurantId is set from the ?rid= URL param above.
+// Every read from a shared collection MUST go through this so one
+// restaurant never sees another restaurant's menu/coupons/orders.
+window._sipCol = function(colName) {
+  const rid = window._sip_restaurantId;
+  if (rid) {
+    return query(collection(db, colName), where('restaurantId', '==', rid));
+  }
+  console.warn('[Siplora Menu] _sipCol called without restaurantId — koi data nahi milega:', colName);
+  // No rid → intentionally return a query that matches nothing,
+  // rather than silently showing every restaurant's data mixed together.
+  return query(collection(db, colName), where('restaurantId', '==', '__no_restaurant__'));
+};
+
 // ── Load ACTIVE ads from Firebase in real-time ──
 function startAdsListener() {
   try {
@@ -2969,7 +2984,7 @@ function startAdsListener() {
 window.__loadMenu = async function() {
   setFbBadge('connecting','Connecting...');
   try {
-    const snap = await getDocs(collection(db,"menu"));
+    const snap = await getDocs(window._sipCol("menu"));
     if (!snap.empty) {
       const cats = [];
       snap.forEach(d => cats.push(d.data()));
@@ -2989,7 +3004,7 @@ window.__loadMenu = async function() {
   try {
     const { onSnapshot } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
     // Real-time listener for billing-added dishes
-    onSnapshot(collection(db,'menuItems'), snap2 => {
+    onSnapshot(window._sipCol('menuItems'), snap2 => {
       if(snap2.empty) { renderMenu('all'); return; }
       const billingDishes = [];
       snap2.forEach(d => {
@@ -3134,7 +3149,7 @@ window.__loadMenu = async function() {
 
   // ── Load coupons from Firebase (added from billing.html) ──
   try {
-    onSnapshot(collection(db,'coupons'), couponSnap => {
+    onSnapshot(window._sipCol('coupons'), couponSnap => {
       window.__fbCoupons = [];
       const colorOptions = [
         {color:'green', bg:'rgba(34,197,94,0.12)', clr:'#22c55e'},
@@ -3175,7 +3190,7 @@ window.__loadMenu = async function() {
 
   // ── Load custom categories from Firebase (saved from billing.html menuCategories) ──
   try {
-    onSnapshot(collection(db,'menuCategories'), catSnap => {
+    onSnapshot(window._sipCol('menuCategories'), catSnap => {
       if(catSnap.empty) { renderMenu('all'); renderPills(); return; }
       const fbCats = [];
       catSnap.forEach(d => fbCats.push(d.data()));
@@ -3215,7 +3230,7 @@ window.__seedMenu = async function() {
   const cats = window.APP_DATA.categories;
   const { setDoc, doc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
   for (let i=0; i<cats.length; i++) {
-    await setDoc(doc(db,'menu',cats[i].id), { ...cats[i], order: i });
+    await setDoc(doc(db,'menu',cats[i].id), { ...cats[i], order: i, restaurantId: window._sip_restaurantId || '' });
   }
   return cats.length;
 };
@@ -3285,6 +3300,7 @@ let countdownInterval = null;
 let customerName    = '';
 let customerPhone   = '';
 let tableNumber     = '';
+let restaurantId    = '';
 let adAutoTimer     = null;
 /* Search state */
 const MAX_HISTORY   = 8;
@@ -3295,6 +3311,8 @@ let isSearchOpen    = false;
 (function(){
   const p = new URLSearchParams(window.location.search);
   tableNumber = p.get('table') || p.get('t') || '';
+  restaurantId = p.get('rid') || p.get('restaurantId') || '';
+  window._sip_restaurantId = restaurantId; // global access for all Firebase queries on this page
   const numEl = document.getElementById('gateTableNum');
   const tableBadge = document.getElementById('gateTableBadge');
   const walkinBadge = document.getElementById('gateWalkinBadge');
@@ -3313,6 +3331,16 @@ let isSearchOpen    = false;
     if (tableBadge) tableBadge.style.display = 'none';
     if (walkinBadge) walkinBadge.style.display = 'flex';
     if (banner) banner.style.display = 'none';
+  }
+  if (!restaurantId) {
+    console.error('[Siplora Menu] restaurantId (rid) missing from URL — purana QR code ho sakta hai. Naya QR code billing panel se generate karo.');
+    // Show visible warning banner
+    setTimeout(function() {
+      var warn = document.createElement('div');
+      warn.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#ef4444;color:#fff;text-align:center;padding:10px 16px;font-size:13px;font-weight:700;font-family:system-ui;line-height:1.5';
+      warn.textContent = '⚠️ Menu URL mein Restaurant ID nahi hai. Billing Panel > QR Codes se naya QR generate karo.';
+      document.body && document.body.prepend(warn);
+    }, 800);
   }
 })();
 
@@ -4798,7 +4826,8 @@ async function placeOrder() {
     couponCode:appliedCoupon?appliedCoupon.code:null,discountAmount:disc,
     items:cartItems.map(i=>({id:i.id,name:i.name,price:i.price,priceNum:i.priceNum,qty:i.qty,spiceLevel:i.spice,customInstruction:i.customNote||''})),
     subtotal:sub,deliveryFee:0,taxes:tax,totalAmount:tot,
-    status:'pending',timestamp:new Date().toISOString(),source:'qr_menu'
+    status:'pending',timestamp:new Date().toISOString(),source:'qr_menu',
+    restaurantId: window._sip_restaurantId || ''
   };
   let savedOk=false;
   try {
@@ -4812,9 +4841,12 @@ async function placeOrder() {
       if(tableNumber && !isNaN(parseInt(tableNumber))){
         try {
           const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-          const tableRef = doc(window.__db, 'tables', String(parseInt(tableNumber)));
+          const ridPrefix = window._sip_restaurantId ? (window._sip_restaurantId + '_') : '';
+          const tableRef = doc(window.__db, 'tables', ridPrefix + String(parseInt(tableNumber)));
           await setDoc(tableRef, {
             status: 'occupied',
+            restaurantId: window._sip_restaurantId || '',
+            tableNumber: String(parseInt(tableNumber)),
             customerName: customerName || '',
             customerPhone: customerPhone || '',
             currentOrder: orderData.items,
@@ -5364,7 +5396,8 @@ async function loadLiveDashboard(){
     const today = new Date().toISOString().split('T')[0];
     const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
     try{
-      const statsSnap = await getDoc(doc(window.__db,'stats',today));
+      const ridForStats = window._sip_restaurantId ? (window._sip_restaurantId + '_') : '';
+      const statsSnap = await getDoc(doc(window.__db,'stats',ridForStats+today));
       if(statsSnap.exists()){
         const stats = statsSnap.data();
         const revEl = document.getElementById('db-revenue');
@@ -5375,7 +5408,7 @@ async function loadLiveDashboard(){
     } catch(e){}
 
     // Load recent bills and compute dish sales
-    const billsSnap = await window.__getDocs(window.__col(window.__db,'bills'));
+    const billsSnap = await window.__getDocs(window._sipCol('bills'));
     const bills = [];
     billsSnap.forEach(d => bills.push({...d.data(), _id: d.id}));
 
@@ -5438,7 +5471,7 @@ async function loadLiveDashboard(){
     }
 
     // Live menu items
-    const menuSnap = await window.__getDocs(window.__col(window.__db,'menuItems'));
+    const menuSnap = await window.__getDocs(window._sipCol('menuItems'));
     const liveMenu = [];
     menuSnap.forEach(d => liveMenu.push({...d.data(), _id: d.id}));
     const menuCountEl = document.getElementById('db-menu-count');
@@ -5679,7 +5712,8 @@ function submitFeedback() {
     rating: avgRating,// overall avg — billing uses this for stats
     tags,
     comment,
-    submittedAt: new Date().toISOString()
+    submittedAt: new Date().toISOString(),
+    restaurantId: window._sip_restaurantId || ''
   };
 
   // ── Save to Firebase 'feedback' collection ──
@@ -5755,10 +5789,13 @@ function renderTableReservationPanel(){
 function loadFirebaseTableStatuses(){
   if(!window.__db || !window.__onSnapshot || !window.__col) return;
   try {
-    window.__onSnapshot(window.__col(window.__db, 'tables'), snap => {
+    window.__onSnapshot(window._sipCol('tables'), snap => {
       snap.forEach(d => {
-        const tNum = parseInt(d.id);
         const data = d.data();
+        // doc id format is "<restaurantId>_<tableNumber>" — prefer the
+        // explicit tableNumber field, fall back to stripping the id prefix.
+        const rawNum = data.tableNumber || d.id.replace(window._sip_restaurantId + '_', '');
+        const tNum = parseInt(rawNum);
         if(!isNaN(tNum) && data.status){
           const tIdx = TABLE_DATA.findIndex(t => t.id === tNum);
           if(tIdx >= 0) TABLE_DATA[tIdx].status = data.status;
@@ -5889,7 +5926,8 @@ function submitTableReservation(){
           notes: rsv.instructions || '',
           arrivalNote: rsv.arrivalNote || '',
           tablePref: 'any',
-          type: 'customer-online'
+          type: 'customer-online',
+          restaurantId: window._sip_restaurantId || ''
         };
         await window.__addDoc(window.__col(window.__db, 'reservations'), fbRsv);
         // NOTE: Table status is NOT changed here — Owner will manually confirm from billing panel

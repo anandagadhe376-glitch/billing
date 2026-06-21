@@ -7,13 +7,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Tenor+Sans&family=Montserrat:wght@200;300;400;500&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Nunito:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
 
+<!-- ═══ FIREBASE COMPAT — AUTH GUARD KE LIYE ═══ -->
+<script src="auth-guard.js"></script>
+
 <!-- ═══ FIREBASE + GEMINI AI SDK ═══ -->
 <script type="module">
   import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, collection, doc, addDoc, updateDoc, setDoc, deleteDoc, getDocs, onSnapshot, query, orderBy, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getFirestore, collection, doc, addDoc, updateDoc, setDoc, deleteDoc, getDocs, onSnapshot, query, where, orderBy, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
-  window.__firebaseModules = { initializeApp, getApps, getFirestore, collection, doc, addDoc, updateDoc, setDoc, deleteDoc, getDocs, onSnapshot, query, orderBy, writeBatch, serverTimestamp, getStorage, ref, uploadBytes, getDownloadURL };
+  window.__firebaseModules = { initializeApp, getApps, getFirestore, collection, doc, addDoc, updateDoc, setDoc, deleteDoc, getDocs, onSnapshot, query, where, orderBy, writeBatch, serverTimestamp, getStorage, ref, uploadBytes, getDownloadURL };
   window.__firebaseReady = true;
   document.dispatchEvent(new Event('firebaseModulesReady'));
 </script>
@@ -407,6 +410,7 @@
     <div class="nav-item" onclick="showPage('delivery',this)"><span class="nav-icon"><span class="_ico" data-i="2023"></span></span><span class="nav-label">Online Delivery</span><span class="nav-badge">NEW</span></div>
     <div class="nav-item" onclick="showPage('birthday',this)"><span class="nav-icon"><span class="_ico" data-i="2024"></span></span><span class="nav-label">Birthday CRM</span><span class="nav-badge">NEW</span></div>
     <div class="nav-item" onclick="showCaptainCommand(this)" id="nav-captain"><span class="nav-icon">🫡</span><span class="nav-label">Captain Command</span><span class="nav-badge" style="background:linear-gradient(135deg,#e74c3c,#c0392b);color:#fff">NEW</span></div>
+    <div class="nav-item" onclick="showChefPanelAdmin(this)" id="nav-chefpanel"><span class="nav-icon">👨‍🍳</span><span class="nav-label">Chef Panel</span><span class="nav-badge" style="background:linear-gradient(135deg,#2e9c5e,#1a7a45);color:#fff">NEW</span></div>
     <div class="nav-item" onclick="showPage('ai-assist',this)"><span class="nav-icon" style="font-size:0;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center"><span class="_ico" data-i="2025"></span></span><span class="nav-label">Siplora AI</span><span class="nav-badge" style="background:linear-gradient(135deg,#a855f7,#6366f1)">NEW</span></div>
     <div class="nav-item" onclick="showPage('esalary',this)"><span class="nav-icon"><span class="_ico" data-i="2026"></span></span><span class="nav-label">E-Salary</span><span class="nav-badge" style="background:linear-gradient(135deg,#FFE600,#7a611f);color:#0a0a0f">NEW</span></div>
     <div class="nav-item" onclick="showPage('daily-owner-report',this)"><span class="nav-icon"><span class="_ico" data-i="2027"></span></span><span class="nav-label">Daily Owner Report</span><span class="nav-badge">NEW</span></div>
@@ -1390,61 +1394,6 @@ Thank you for dining with us! <span class="_ico" data-i="34"></span></textarea><
           <th>Status</th><th>Actions</th>
         </tr></thead>
         <tbody id="stock-table-body">
-          <tr data-item='{"name":"Chicken","cat":"Non-Veg","brand":"Local","qty":45,"unit":"Kg","alertAt":10,"critical":5,"maxQty":100,"location":"Cold Room","storageType":"Refrigerated","purchasePrice":280,"mfgDate":"","lastPurchase":"2025-05-20","expiry":"2025-06-02","itemType":"Perishable","batch":"BTH-001","supplier":"Fresh Farms","supplierPhone":"9876543210","supplierEmail":"","leadTime":1,"reorderQty":50,"paymentTerms":"Cash","autoReorder":true,"notes":""}'>
-            <td><b style="color:var(--cream)">Chicken</b></td><td>Non-Veg</td><td>Local</td>
-            <td style="color:#2ecc71;font-weight:500">45</td><td>Kg</td><td>10</td><td>5</td><td>100</td>
-            <td style="font-size:10px">Cold Room</td><td><span style="font-size:9px"><span class="_ico" data-i="13"></span>️ Refrigerated</span></td>
-            <td>₹280</td><td>—</td><td id="exp-Chicken" style="font-size:10px">02 Jun 2025</td>
-            <td><span class="badge badge-red" style="font-size:8px">Perishable</span></td><td style="font-size:10px">BTH-001</td>
-            <td>Fresh Farms</td><td>9876543210</td>
-            <td>1</td><td>50</td><td><span class="badge badge-blue" style="font-size:8px"><span class="_ico" data-i="21"></span> ON</span></td>
-            <td><span class="badge badge-green">Good</span></td>
-            <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="editStockItem(this)" style="font-size:9px;margin-bottom:4px"><span class="_ico" data-i="47"></span>️ Edit</button><br><button class="btn btn-ghost btn-sm" onclick="sendSingleSupplierRequest({name:'Chicken',supplier:'Fresh Farms',qty:45,unit:'Kg',alertAt:10,supplierPhone:'9876543210',reorderQty:50})" style="font-size:9px"><span class="_ico" data-i="27"></span> Request</button></td>
-          </tr>
-          <tr data-item='{"name":"Basmati Rice","cat":"Grains","brand":"Daawat","qty":80,"unit":"Kg","alertAt":20,"critical":8,"maxQty":200,"location":"Shelf 2","storageType":"Dry","purchasePrice":95,"mfgDate":"","lastPurchase":"2025-05-15","expiry":"2026-05-01","itemType":"Non-Perishable","batch":"BTH-002","supplier":"Royal Rice","supplierPhone":"9823456789","supplierEmail":"","leadTime":2,"reorderQty":100,"paymentTerms":"Credit7","autoReorder":false,"notes":""}'>
-            <td><b style="color:var(--cream)">Basmati Rice</b></td><td>Grains</td><td>Daawat</td>
-            <td style="color:#2ecc71;font-weight:500">80</td><td>Kg</td><td>20</td><td>8</td><td>200</td>
-            <td style="font-size:10px">Shelf 2</td><td><span style="font-size:9px"><span class="_ico" data-i="12"></span> Dry</span></td>
-            <td>₹95</td><td>—</td><td style="font-size:10px">01 May 2026</td>
-            <td><span class="badge badge-gold" style="font-size:8px">Non-Perishable</span></td><td style="font-size:10px">BTH-002</td>
-            <td>Royal Rice</td><td>9823456789</td>
-            <td>2</td><td>100</td><td>—</td>
-            <td><span class="badge badge-green">Good</span></td>
-            <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="editStockItem(this)" style="font-size:9px;margin-bottom:4px"><span class="_ico" data-i="47"></span>️ Edit</button><br><button class="btn btn-ghost btn-sm" onclick="sendSingleSupplierRequest({name:'Basmati Rice',supplier:'Royal Rice',qty:80,unit:'Kg',alertAt:20,supplierPhone:'9823456789',reorderQty:100})" style="font-size:9px"><span class="_ico" data-i="27"></span> Request</button></td>
-          </tr>
-          <tr data-item='{"name":"Paneer","cat":"Dairy","brand":"Amul","qty":8,"unit":"Kg","alertAt":15,"critical":5,"maxQty":40,"location":"Fridge A","storageType":"Refrigerated","purchasePrice":340,"mfgDate":"","lastPurchase":"2025-05-22","expiry":"2025-05-30","itemType":"Perishable","batch":"BTH-003","supplier":"Amul","supplierPhone":"9811223344","supplierEmail":"amul@supply.com","leadTime":1,"reorderQty":30,"paymentTerms":"Cash","autoReorder":false,"notes":"Cold storage required always"}'>
-            <td><b style="color:#e74c3c">Paneer</b></td><td>Dairy</td><td>Amul</td>
-            <td style="color:#e74c3c;font-weight:500">8</td><td>Kg</td><td style="color:#e74c3c">15</td><td>5</td><td>40</td>
-            <td style="font-size:10px">Fridge A</td><td><span style="font-size:9px"><span class="_ico" data-i="13"></span>️ Refrigerated</span></td>
-            <td>₹340</td><td>—</td><td style="font-size:10px;color:#f39c12">30 May 2025</td>
-            <td><span class="badge badge-red" style="font-size:8px">Perishable</span></td><td style="font-size:10px">BTH-003</td>
-            <td>Amul</td><td>9811223344</td>
-            <td>1</td><td>30</td><td>—</td>
-            <td><span class="badge badge-red"><span class="_ico" data-i="1"></span> LOW</span></td>
-            <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="editStockItem(this)" style="font-size:9px;margin-bottom:4px"><span class="_ico" data-i="47"></span>️ Edit</button><br><button class="btn btn-ghost btn-sm" onclick="sendSingleSupplierRequest({name:'Paneer',supplier:'Amul',qty:8,unit:'Kg',alertAt:15,supplierPhone:'9811223344',reorderQty:30})" style="font-size:9px;color:#e74c3c;border-color:rgba(231,76,60,0.4)"><span class="_ico" data-i="27"></span> Urgent</button></td>
-          </tr>
-          <tr data-item='{"name":"Ghee","cat":"Dairy","brand":"Amul","qty":5,"unit":"Litre","alertAt":8,"critical":3,"maxQty":30,"location":"Shelf 1","storageType":"Dry","purchasePrice":550,"mfgDate":"","lastPurchase":"2025-05-10","expiry":"2025-11-01","itemType":"Semi-Perishable","batch":"BTH-004","supplier":"Amul","supplierPhone":"9811223344","supplierEmail":"amul@supply.com","leadTime":1,"reorderQty":20,"paymentTerms":"Cash","autoReorder":false,"notes":""}'>
-            <td><b style="color:#e74c3c">Ghee</b></td><td>Dairy</td><td>Amul</td>
-            <td style="color:#e74c3c;font-weight:500">5</td><td>Litre</td><td style="color:#e74c3c">8</td><td>3</td><td>30</td>
-            <td style="font-size:10px">Shelf 1</td><td><span style="font-size:9px"><span class="_ico" data-i="15"></span>️ Room Temp</span></td>
-            <td>₹550</td><td>—</td><td style="font-size:10px">01 Nov 2025</td>
-            <td><span class="badge badge-gold" style="font-size:8px">Semi-Perish</span></td><td style="font-size:10px">BTH-004</td>
-            <td>Amul</td><td>9811223344</td>
-            <td>1</td><td>20</td><td>—</td>
-            <td><span class="badge badge-red"><span class="_ico" data-i="1"></span> LOW</span></td>
-            <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="editStockItem(this)" style="font-size:9px;margin-bottom:4px"><span class="_ico" data-i="47"></span>️ Edit</button><br><button class="btn btn-ghost btn-sm" onclick="sendSingleSupplierRequest({name:'Ghee',supplier:'Amul',qty:5,unit:'Litre',alertAt:8,supplierPhone:'9811223344',reorderQty:20})" style="font-size:9px;color:#e74c3c;border-color:rgba(231,76,60,0.4)"><span class="_ico" data-i="27"></span> Urgent</button></td>
-          </tr>
-          <tr data-item='{"name":"Tomatoes","cat":"Veg","brand":"Local","qty":12,"unit":"Kg","alertAt":10,"critical":4,"maxQty":30,"location":"Veggie Rack","storageType":"Room Temp","purchasePrice":40,"mfgDate":"","lastPurchase":"2025-05-26","expiry":"2025-06-01","itemType":"Perishable","batch":"BTH-005","supplier":"Local Market","supplierPhone":"9800112233","supplierEmail":"","leadTime":0,"reorderQty":25,"paymentTerms":"Cash","autoReorder":false,"notes":"Fresh daily preferred"}'>
-            <td><b style="color:var(--gold-light)">Tomatoes</b></td><td>Veg</td><td>Local</td>
-            <td style="color:var(--gold-light);font-weight:500">12</td><td>Kg</td><td style="color:var(--gold-light)">10</td><td>4</td><td>30</td>
-            <td style="font-size:10px">Veggie Rack</td><td><span style="font-size:9px"><span class="_ico" data-i="15"></span>️ Room Temp</span></td>
-            <td>₹40</td><td>—</td><td style="font-size:10px;color:#f39c12">01 Jun 2025</td>
-            <td><span class="badge badge-red" style="font-size:8px">Perishable</span></td><td style="font-size:10px">BTH-005</td>
-            <td>Local Market</td><td>9800112233</td>
-            <td>0</td><td>25</td><td>—</td>
-            <td><span class="badge badge-gold">Medium</span></td>
-            <td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="editStockItem(this)" style="font-size:9px;margin-bottom:4px"><span class="_ico" data-i="47"></span>️ Edit</button><br><button class="btn btn-ghost btn-sm" onclick="sendSingleSupplierRequest({name:'Tomatoes',supplier:'Local Market',qty:12,unit:'Kg',alertAt:10,supplierPhone:'9800112233',reorderQty:25})" style="font-size:9px"><span class="_ico" data-i="27"></span> Request</button></td>
-          </tr>
         </tbody>
       </table>
       </div>
@@ -3468,6 +3417,72 @@ Thank you for dining with us! <span class="_ico" data-i="34"></span></textarea><
   <span id="cc-week-count" style="display:none">0</span>
 </div>
 <!-- =================== END CAPTAIN COMMAND PAGE =================== -->
+
+<!-- =================== CHEF PANEL ADMIN PAGE =================== -->
+<div class="page" id="page-chefpanel">
+  <div style="max-width:920px;margin:0 auto;padding:8px 0 40px">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-family:var(--font-royal);font-size:28px;letter-spacing:3px;color:var(--gold-light);display:flex;align-items:center;gap:12px">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;background:linear-gradient(135deg,rgba(46,156,94,0.25),rgba(46,156,94,0.06));border:1px solid rgba(46,156,94,0.4);border-radius:10px">👨‍🍳</span>
+          Chef Panel
+        </div>
+        <div style="font-family:var(--font-ui);font-size:11px;color:rgba(245,240,232,0.4);margin-top:4px">Chef login credentials manage karo — Chef Panel app (chef.html) yahin se verify hoga</div>
+      </div>
+      <div id="cp-chef-count-badge" style="font-family:var(--font-ui);font-size:10px;background:rgba(46,156,94,0.15);border:1px solid rgba(46,156,94,0.3);color:#2e9c5e;padding:5px 14px;border-radius:20px">0 Chefs</div>
+    </div>
+
+    <!-- Add Chef Form -->
+    <div style="background:linear-gradient(160deg,rgba(18,14,36,0.97) 0%,rgba(10,8,22,0.97) 100%);border:1px solid rgba(46,156,94,0.3);border-radius:16px;padding:20px 22px;margin-bottom:22px">
+      <div style="font-family:var(--font-ui);font-size:11px;font-weight:700;color:var(--gold-light);letter-spacing:1.5px;margin-bottom:14px;display:flex;align-items:center;gap:8px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(46,156,94,0.95)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        ADD NEW CHEF
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <div style="font-family:var(--font-ui);font-size:9px;color:rgba(245,240,232,0.4);letter-spacing:1px;margin-bottom:5px">CHEF NAME</div>
+          <input id="cp-add-name" type="text" autocomplete="off" placeholder="e.g. Ramesh Kumar"
+            style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(46,156,94,0.3);border-radius:8px;padding:9px 12px;font-family:var(--font-ui);font-size:12px;color:rgba(245,240,232,0.9);outline:none"/>
+        </div>
+        <div>
+          <div style="font-family:var(--font-ui);font-size:9px;color:rgba(245,240,232,0.4);letter-spacing:1px;margin-bottom:5px">EMAIL</div>
+          <input id="cp-add-email" type="email" autocomplete="off" placeholder="chef@example.com"
+            style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(46,156,94,0.3);border-radius:8px;padding:9px 12px;font-family:var(--font-ui);font-size:12px;color:rgba(245,240,232,0.9);outline:none"/>
+        </div>
+        <div>
+          <div style="font-family:var(--font-ui);font-size:9px;color:rgba(245,240,232,0.4);letter-spacing:1px;margin-bottom:5px">PASSWORD</div>
+          <div style="position:relative">
+            <input id="cp-add-password" type="password" autocomplete="off" placeholder="Set a password"
+              style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.05);border:1px solid rgba(46,156,94,0.3);border-radius:8px;padding:9px 36px 9px 12px;font-family:var(--font-ui);font-size:12px;color:rgba(245,240,232,0.9);outline:none"/>
+            <button type="button" onclick="cpToggleAddPwdVis()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:rgba(245,240,232,0.4);font-size:14px" title="Show/Hide">👁</button>
+          </div>
+        </div>
+      </div>
+      <div id="cp-add-error" style="font-family:var(--font-ui);font-size:10px;color:#e74c3c;min-height:16px"></div>
+      <button onclick="cpAddChef()" style="background:linear-gradient(135deg,rgba(46,156,94,0.35) 0%,rgba(46,156,94,0.18) 100%);border:1.5px solid rgba(46,156,94,0.6);border-radius:10px;padding:10px 22px;font-family:var(--font-ui);font-size:12px;font-weight:700;color:var(--gold-light);cursor:pointer;letter-spacing:1px;display:inline-flex;align-items:center;gap:8px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        ADD CHEF
+      </button>
+    </div>
+
+    <!-- Chef List -->
+    <div>
+      <div style="font-family:var(--font-ui);font-size:10px;letter-spacing:2px;color:rgba(245,240,232,0.35);margin-bottom:12px;display:flex;align-items:center;gap:7px">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(245,240,232,0.4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        ALL CHEFS
+      </div>
+      <div id="cp-chef-list" style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-family:var(--font-ui);font-size:12px;color:rgba(245,240,232,0.3);text-align:center;padding:24px;border:1px dashed rgba(46,156,94,0.2);border-radius:12px">
+          No chefs added yet — upar se add karo
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+<!-- =================== END CHEF PANEL ADMIN PAGE =================== -->
 
 <!-- ══ CAPTAIN DETAIL MODAL ══ -->
 <div class="modal-overlay" id="cc-captain-detail-modal">
@@ -7636,6 +7651,8 @@ Fill details — confirmation message will appear here <span class="_ico" data-i
   </div>
 </div>
 <script src="billing.js"></script>
+<!-- ═══ SUPER ADMIN FEATURE GATE — connects this app to super-admin.html ═══ -->
+<!-- Feature-gate disabled -->
 <!-- Feature Section — Professional Interactions -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {

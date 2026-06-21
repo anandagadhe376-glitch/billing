@@ -1,85 +1,49 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title> Siplora System Login</title>
-
+  <title>Siplora System Login</title>
   <style>
     * {margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif;}
-
     body {
-      height:100vh;
-      overflow:hidden;
+      height:100vh; overflow:hidden;
       background: linear-gradient(270deg,#001a00,#003300,#001a00);
       background-size:600% 600%;
       animation:bgMove 10s infinite;
-      display:flex;
-      justify-content:center;
-      align-items:center;
+      display:flex; justify-content:center; align-items:center;
     }
-
     @keyframes bgMove {
-      0%{background-position:0% 50%;}
-      50%{background-position:100% 50%;}
-      100%{background-position:0% 50%;}
+      0%{background-position:0% 50%;}50%{background-position:100% 50%;}100%{background-position:0% 50%;}
     }
-
     .food {
-      position:absolute;
-      width:120px;
-      border-radius:20px;
-      animation: float 6s infinite ease-in-out, rotate 20s linear infinite;
+      position:absolute; width:120px; border-radius:20px;
+      animation: float 6s infinite ease-in-out;
     }
-
-    .f1 {top:10%;left:10%;}
-    .f2 {top:70%;left:15%;}
-    .f3 {top:20%;right:10%;}
-    .f4 {bottom:10%;right:20%;}
-
-    @keyframes float {
-      0%,100%{transform:translateY(0);}
-      50%{transform:translateY(-40px);}
-    }
-
-    @keyframes rotate {
-      from{transform:rotate(0deg);}
-      to{transform:rotate(360deg);}
-    }
-
+    .f1{top:10%;left:10%;} .f2{top:70%;left:15%;} .f3{top:20%;right:10%;} .f4{bottom:10%;right:20%;}
+    @keyframes float {0%,100%{transform:translateY(0);}50%{transform:translateY(-40px);}}
     .login-box {
-      z-index:2;
-      width:360px;
-      padding:40px;
-      border-radius:20px;
-      background:rgba(255,255,255,0.08);
-      backdrop-filter:blur(20px);
-      box-shadow:0 0 40px rgba(0,255,100,0.4);
-      text-align:center;
-      color:white;
+      z-index:2; width:360px; padding:40px; border-radius:20px;
+      background:rgba(255,255,255,0.08); backdrop-filter:blur(20px);
+      box-shadow:0 0 40px rgba(0,255,100,0.4); text-align:center; color:white;
     }
-
-    .logo {font-size:30px;margin-bottom:10px;color:#00e676;}
-
+    .logo {font-size:28px; margin-bottom:8px; color:#00e676;}
+    h2 {margin-bottom:20px; font-size:18px;}
     input {
-      width:100%;
-      padding:12px;
-      margin:10px 0;
-      border:none;
-      border-radius:10px;
-      background:rgba(255,255,255,0.15);
-      color:white;
+      width:100%; padding:12px; margin:8px 0; border:none;
+      border-radius:10px; background:rgba(255,255,255,0.15);
+      color:white; font-size:14px; outline:none;
     }
-
+    input::placeholder{color:rgba(255,255,255,0.5);}
     button {
-      width:100%;
-      padding:12px;
-      border:none;
-      border-radius:10px;
+      width:100%; padding:12px; border:none; border-radius:10px;
       background:linear-gradient(45deg,#00c853,#69f0ae);
-      cursor:pointer;
+      cursor:pointer; font-size:15px; font-weight:600; margin-top:8px;
+      transition:opacity 0.2s;
     }
+    button:disabled{opacity:0.6; cursor:not-allowed;}
+    .error {color:#ff5252; font-size:13px; margin-top:12px; min-height:18px; line-height:1.4;}
+    .success {color:#69f0ae; font-size:13px; margin-top:12px;}
   </style>
 </head>
-
 <body>
 
 <img class="food f1" src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd">
@@ -88,64 +52,160 @@
 <img class="food f4" src="https://images.unsplash.com/photo-1543353071-087092ec393a">
 
 <div class="login-box">
-  <div class="logo">🌿Siplora(System)</div>
+  <div class="logo">🌿 Siplora(System)</div>
   <h2>Welcome Back</h2>
-
-  <!-- 🔥 IMPORTANT ID SAME -->
   <form id="loginForm">
-    <input id="email" type="email" placeholder="Email" required>
-    <input id="password" type="password" placeholder="Password" required>
-    <button type="submit">Login</button>
+    <input id="email" type="email" placeholder="Email" required autocomplete="email">
+    <input id="password" type="password" placeholder="Password" required autocomplete="current-password">
+    <button type="submit" id="loginBtn">Login</button>
   </form>
+  <div class="error" id="errMsg"></div>
 </div>
 
-<!-- Firebase CDN -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <script>
-const firebaseConfig = {
+  // ── Login page khulte hi purana session + purana restaurant data clear karo ──
+  // Taaki naya user fresh login kar sake — purana session ya purana
+  // restaurant ka cached billing data (tables/orders/menu/etc.) na dikhe
+  localStorage.removeItem("sip_session");
+  localStorage.removeItem("cc_loggedIn");
+  localStorage.removeItem("cc_role");
+  localStorage.removeItem("cc_restaurantId");
+  localStorage.removeItem("sipSession");
+
+  // ── IMPORTANT FIX: billing.js localStorage mein bina restaurantId ke
+  // data save karta hai (lum_tables, lum_orders, lum_menu, etc.).
+  // Agar same browser se doosra restaurant login kare, to ye purana
+  // cached data naye restaurant ko dikh jata hai jab tak Firebase se
+  // fresh data na aa jaye. Isliye login ke time ye saari keys clear karo.
+  var LUM_KEYS_TO_CLEAR = [
+    "lum_tables", "lum_floors", "lum_menu", "lum_tasks", "lum_customers",
+    "lum_stock", "lum_settings", "lum_billno", "lum_quotations", "lum_quotno",
+    "lum_suppliers", "lum_delivery", "lum_loyalty", "lum_orders",
+    "lum_paid_tables", "lum_menu_url", "lum_wa_config", "lum_wa_server_url",
+    "lum_queue", "smStaff", "lum_attendance", "es_employees",
+    "es_attendance", "es_salary_status"
+  ];
+  LUM_KEYS_TO_CLEAR.forEach(function (k) {
+    localStorage.removeItem(k);
+  });
+  // Safety net: agar koi naya "lum_" ya "es_" key future me add ho jaye
+  // jo upar list me dalna bhool gaye ho, use bhi pakad ke clear karo.
+  Object.keys(localStorage).forEach(function (k) {
+    if (k.indexOf("lum_") === 0 || k.indexOf("es_") === 0 || k.indexOf("smStaff") === 0) {
+      localStorage.removeItem(k);
+    }
+  });
+
+  // Firebase Auth se bhi sign out karo (purana user logged in ho sakta hai)
+  // Ye firebase load hone ke baad hoga — neeche handle hai
+
+  firebase.initializeApp({
     apiKey: "AIzaSyBsRxWD2R1GkSEM-duLwQe3jAi7yw5vvvM",
     authDomain: "restaurant-system-beec1.firebaseapp.com",
     projectId: "restaurant-system-beec1",
     storageBucket: "restaurant-system-beec1.firebasestorage.app",
     messagingSenderId: "106757122327",
-    appId: "1:106757122327:web:723d8dacbba3087b686f52",
-    measurementId: "G-5MQHDVS4TN"
-  };
+    appId: "1:106757122327:web:723d8dacbba3087b686f52"
+  });
 
-firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db   = firebase.firestore();
 
-const auth = firebase.auth();
-const db = firebase.firestore();
+  // ── Purana Firebase Auth session bhi clear karo ─────────────────
+  auth.signOut().catch(() => {});
 
-document.getElementById("loginForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
+  document.getElementById("loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
+    const email    = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const errMsg   = document.getElementById("errMsg");
+    const btn      = document.getElementById("loginBtn");
 
-  try {
-    await auth.signInWithEmailAndPassword(email, password);
+    errMsg.textContent = "";
+    btn.textContent    = "Logging in...";
+    btn.disabled       = true;
 
-    const snapshot = await db.collection("users")
-      .where("email", "==", email)
-      .get();
+    try {
+      // ── Step 1: Firebase Auth se login ──────────────────────────
+      const userCred = await auth.signInWithEmailAndPassword(email, password);
+      const uid      = userCred.user.uid;
 
-    let role = "";
-    snapshot.forEach(doc => role = doc.data().role);
+      // ── Step 2: Firestore mein users/{uid} se role padho ────────
+      // Document ID = Firebase Auth UID hona chahiye
+      const userDoc = await db.collection("users").doc(uid).get();
 
-    if (role === "chef") location.href = "chef.html";
-    else if (role === "captain") location.href = "captain.html";
-    else if (role === "billing") location.href = "billing.html";
-    else if (role === "ads") location.href = "ads.html";
+      let role         = "";
+      let restaurantId = "";
 
-  } catch (err) {
-    alert(err.message);
-  }
-});
+      if (userDoc.exists) {
+        const data   = userDoc.data();
+        role         = data.role         || "";
+        restaurantId = data.restaurantId || "";
+      } else {
+        // ── users document nahi mila ──────────────────────────────
+        // restaurants collection mein check karo — owner ho sakta hai
+        const restSnap = await db.collection("restaurants")
+          .where("ownerUid", "==", uid)
+          .get();
+
+        if (!restSnap.empty) {
+          role         = "owner";
+          restaurantId = restSnap.docs[0].data().restaurantId || restSnap.docs[0].id;
+        } else {
+          await auth.signOut();
+          errMsg.textContent = "❌ Tumhara account Firestore mein nahi hai — admin se contact karo";
+          btn.textContent = "Login"; btn.disabled = false;
+          return;
+        }
+      }
+
+      if (!role) {
+        await auth.signOut();
+        errMsg.textContent = "❌ Role set nahi hai — admin se contact karo";
+        btn.textContent = "Login"; btn.disabled = false;
+        return;
+      }
+
+      // ── Step 3: Session save karo ────────────────────────────────
+      localStorage.setItem("sip_session", JSON.stringify({
+        restaurantId : restaurantId,
+        uid          : uid,
+        email        : email,
+        role         : role,
+        loginAt      : Date.now()
+      }));
+
+      // restaurantId global set karo (billing.js ke liye)
+      window._sip_restaurantId = restaurantId;
+
+      // ── Step 4: Role ke hisaab se redirect ──────────────────────
+      if      (role === "chef")    location.href = "chef.html";
+      else if (role === "captain") location.href = "captain.html";
+      else if (role === "billing") location.href = "billing.html";
+      else if (role === "ads")     location.href = "ads.html";
+      else if (role === "owner")   location.href = "billing.html";
+      else {
+        errMsg.textContent = "❌ Role pehchana nahi gaya: " + role;
+        btn.textContent = "Login"; btn.disabled = false;
+      }
+
+    } catch (err) {
+      btn.textContent = "Login"; btn.disabled = false;
+
+      if      (err.code === "auth/user-not-found")    errMsg.textContent = "❌ Ye email registered nahi hai";
+      else if (err.code === "auth/wrong-password")     errMsg.textContent = "❌ Password galat hai";
+      else if (err.code === "auth/invalid-credential") errMsg.textContent = "❌ Email ya password galat hai";
+      else if (err.code === "auth/invalid-email")      errMsg.textContent = "❌ Email format sahi nahi";
+      else if (err.code === "auth/too-many-requests")  errMsg.textContent = "❌ Bahut attempts — thodi der baad try karo";
+      else if (err.code === "permission-denied")       errMsg.textContent = "❌ Firestore Rules block kar rahi hai — rules update karo";
+      else                                             errMsg.textContent = "❌ " + err.message;
+    }
+  });
 </script>
-
 </body>
 </html>
