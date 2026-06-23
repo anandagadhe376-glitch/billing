@@ -3722,7 +3722,7 @@ tbody td { color: var(--ink2) !important; }
       </button>
     </div>
     <div style="display:flex;gap:8px;">
-      <button class="btn btn-outline" style="flex:1;font-size:11px" onclick="(function(){var w=window.open('','_blank');var c=document.getElementById('billPrintBody').innerHTML;w.document.write('<!DOCTYPE html><html><head><title>Bill</title><style>body{margin:0;padding:16px;font-family:Courier New,monospace}@media print{body{padding:0}}</style></head><body>'+c+'<script>window.onload=function(){window.print();window.close()}<\/script></body></html>');w.document.close();})()">🖨️ Print</button>
+      <button class="btn btn-outline" style="flex:1;font-size:11px" onclick="captainPrintBill()">>🖨️ Print</button>
       <button class="btn btn-outline" style="flex:1;font-size:11px" onclick="closeModal('billPrintModal')">Cancel</button>
     </div>
   </div>
@@ -6632,6 +6632,12 @@ async function doLogin(){
 
     // Get all captains from Firestore
     const snap = await getDocs(collection(db, 'captains'));
+
+    // QR scan se aaye ?rid= URL param
+    const urlRid = new URLSearchParams(window.location.search).get('rid')
+                || localStorage.getItem('captain_restaurant_id')
+                || null;
+
     let matchedCaptain = null;
     snap.forEach(d => {
       const data = { _fbId: d.id, ...d.data() };
@@ -6641,9 +6647,22 @@ async function doLogin(){
         data.password === p &&
         data.status !== 'inactive'
       ) {
-        matchedCaptain = data;
+        if (!matchedCaptain) {
+          matchedCaptain = data;
+        } else if (data.restaurantId && urlRid && data.restaurantId === urlRid) {
+          matchedCaptain = data;
+        }
       }
     });
+
+    if (matchedCaptain) {
+      const rid = matchedCaptain.restaurantId || urlRid || null;
+      if (rid) {
+        window._captainRestaurantId = rid;
+        window._sip_restaurantId    = rid;
+        localStorage.setItem('captain_restaurant_id', rid);
+      }
+    }
 
     if (!matchedCaptain) {
       showToast('❌ Galat username ya password', 'error');
@@ -6807,9 +6826,11 @@ async function saveAllSettings() {
   // Firebase mein save karo
   if (_captainDb && _captainCollection && _captainAddDoc) {
     try {
-      // setDoc with fixed ID 'restaurantSettings' — overwrite karo har baar
+      // setDoc with ID scoped to restaurantId (multi-restaurant safe)
       const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-      await setDoc(doc(_captainDb, 'captainSettings', 'restaurantSettings'), settingsData);
+      const _rid = _getRid();
+      const _settingsDocId = _rid ? ('restaurantSettings_' + _rid) : 'restaurantSettings';
+      await setDoc(doc(_captainDb, 'captainSettings', _settingsDocId), Object.assign({}, settingsData, _rid ? { restaurantId: _rid } : {}));
       showToast('✅ Settings Firebase mein save ho gayi!');
       // console.log('✅ Settings saved to Firebase');
     } catch(e) {
@@ -6832,7 +6853,9 @@ async function _loadSettingsFromFirebase() {
     const { doc, getDoc, onSnapshot, collection, getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
 
     // -- 1. Captain UI settings (toggles, currency etc.) --
-    const snap = await getDoc(doc(_captainDb, 'captainSettings', 'restaurantSettings'));
+    const _rid = _getRid();
+    const _settingsDocId = _rid ? ('restaurantSettings_' + _rid) : 'restaurantSettings';
+    const snap = await getDoc(doc(_captainDb, 'captainSettings', _settingsDocId));
     if (snap.exists()) {
       const d = snap.data();
       const inputs = document.querySelectorAll('#page-settings .setting-input');
@@ -7493,6 +7516,9 @@ async function placeOrder(){
   });
   const total = firebaseItems.reduce((a,i)=>a+(i.price*i.qty),0);
 
+  // ── MULTI-RESTAURANT: restaurantId add karo ──
+  const _orderRid = window._captainRestaurantId || (window._loggedInCaptain && window._loggedInCaptain.restaurantId) || null;
+
   const orderPayload = {
     tableNumber:    String(tbl),
     customerName:   custName,
@@ -7510,7 +7536,8 @@ async function placeOrder(){
     chefNotified:   true,
     chefPanelAlert: true,
     sentToChef:     true,
-    chefAlertTime:  new Date().toISOString()
+    chefAlertTime:  new Date().toISOString(),
+    ...((_orderRid) ? { restaurantId: _orderRid } : {})
   };
 
   // Cart clear + UI reset — Firebase save se PEHLE karo
@@ -8076,24 +8103,26 @@ async function captainFreeTableOnFirebase(tableName){
   const tNum = parseInt(String(tableName).replace(/\D/g,'')) || 0;
   try {
     const { doc, setDoc, updateDoc, collection, getDocs, query, where } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+    // ── MULTI-RESTAURANT FIX: always use window._captainDb (scoped instance) ──
     if(!window._captainDb) return;
-    const db = window._captainDb;
+    const _db = window._captainDb;
+    const _rid = _getRid();
 
     // 1. Update billing 'tables' collection
-    await setDoc(doc(db, 'tables', String(tNum)), {
+    await setDoc(doc(_db, 'tables', String(tNum)), _addRid({
       status: 'available',
       currentOrder: [],
       customerName: '',
       customerPhone: '',
       paidAt: new Date().toISOString()
-    }, { merge: true });
+    }), { merge: true });
 
     // 2. Mark active order as 'paid' in 'orders' collection
     if(_activeBillFbOrderId){
-      await updateDoc(doc(db, 'orders', _activeBillFbOrderId), {
+      await updateDoc(doc(_db, 'orders', _activeBillFbOrderId), _addRid({
         status: 'paid',
         paidAt: new Date().toISOString()
-      }).catch(()=>{});
+      })).catch(()=>{});
     }
 
     // 3. Local update
@@ -14362,21 +14391,43 @@ function resetVS(){
 // ── Captain Firebase Config — FILE TOP MEIN DEFINE HAI (var CAPTAIN_FB_CFG) ──
 // Yahan dobara define karne ki zarurat nahi — window.load mein use hoga
 
+// ── MULTI-RESTAURANT HELPERS ──────────────────────────────────────────────
+// Current restaurant ID getter — har jagah se call kar sakte ho
+function _getRid() {
+  return window._captainRestaurantId ||
+    (window._loggedInCaptain && window._loggedInCaptain.restaurantId) ||
+    null;
+}
+// Payload mein restaurantId inject karo (agar set hai toh)
+function _addRid(payload) {
+  var rid = _getRid();
+  if (rid) payload.restaurantId = rid;
+  return payload;
+}
+// Filter check — kya ye document apne restaurant ka hai?
+function _isMyRestaurant(data) {
+  var rid = _getRid();
+  if (!rid) return true; // single-restaurant mode — sab dikhao
+  if (!data.restaurantId) return false; // legacy data — HIDE karo
+  return data.restaurantId === rid;
+}
+// ─────────────────────────────────────────────────────────────────────────
+
 // Captain state
-let _captainDb = null;
-let _captainDoc = null;
-let _captainUpdateDoc = null;
-let _captainAddDoc = null;
-let _captainCollection = null;
-let _captainOnSnapshot = null;
-let _captainDeleteDoc = null;
-let _captainFirebaseOrders = []; // Live orders from Firebase
-let _captainOrderHistory = []; // Completed orders history
-let _captainPrevOrderState = {}; // Previous state of each order for change detection
-let _captainTimerModal_fbId = null;
-let _captainAssignModal_fbId = null;
-let _captainSelectedWaiter = '';
-let _captainTimerValue = 0;
+var _captainDb = null;
+var _captainDoc = null;
+var _captainUpdateDoc = null;
+var _captainAddDoc = null;
+var _captainCollection = null;
+var _captainOnSnapshot = null;
+var _captainDeleteDoc = null;
+var _captainFirebaseOrders = []; // Live orders from Firebase
+var _captainOrderHistory = []; // Completed orders history
+var _captainPrevOrderState = {}; // Previous state of each order for change detection
+var _captainTimerModal_fbId = null;
+var _captainAssignModal_fbId = null;
+var _captainSelectedWaiter = '';
+var _captainTimerValue = 0;
 
 // Toast function for captain (if not already defined)
 function captainToast(msg, color) {
@@ -14434,7 +14485,10 @@ window.addEventListener('load', async function() {
       import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js")
     ]);
     const { initializeApp, getApps } = fbAppMod;
-    const { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy } = fbFsMod;
+    const { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, where } = fbFsMod;
+    // ── MULTI-RESTAURANT: query+where globally save karo ──
+    window._captainQuery = query;
+    window._captainWhere = where;
 
     // Init Firebase app (reuse if already initialized)
     const apps = getApps();
@@ -14508,8 +14562,12 @@ function startCaptainOrderListener() {
 
   _captainOnSnapshot(_captainCollection(_captainDb, 'orders'), snap => {
     const orders = [];
+    // ── MULTI-RESTAURANT FIX: sirf apne restaurant ka data lo ──
+    const myRid = window._captainRestaurantId || (window._loggedInCaptain && window._loggedInCaptain.restaurantId) || null;
     snap.forEach(d => {
       const o = { _fbId: d.id, ...d.data() };
+      // restaurantId filter — agar set hai toh sirf apna data
+      if (myRid && o.restaurantId && o.restaurantId !== myRid) return;
       const tableNum = o.tableNumber || o.table || '';
       // Only active orders — exclude served/paid/cancelled — AND only captain's tables
       if (!['served', 'paid', 'cancelled'].includes(o.status) && _isCaptainTable(tableNum)) {
@@ -15271,8 +15329,11 @@ function startCaptainHistoryListener() {
   if (!_captainDb || !_captainCollection || !_captainOnSnapshot) return;
   _captainOnSnapshot(_captainCollection(_captainDb, 'orderHistory'), snap => {
     const history = [];
+    // ── MULTI-RESTAURANT FIX: sirf apne restaurant ki history ──
+    const myRid = window._captainRestaurantId || (window._loggedInCaptain && window._loggedInCaptain.restaurantId) || null;
     snap.forEach(d => {
       const o = { _fbId: d.id, ...d.data() };
+      if (myRid && o.restaurantId && o.restaurantId !== myRid) return;
       history.push(o);
     });
     // Sort by timestamp descending (newest first)
@@ -15755,7 +15816,7 @@ async function confirmCaptainWaiterAssign() {
 
     // Save to orderHistory collection (dono panels ke liye)
     const amount = (order?.items || []).reduce((t, i) => t + ((i.price || 0) * (i.qty || 1)), 0);
-    await _captainAddDoc(_captainCollection(_captainDb, 'orderHistory'), {
+    await _captainAddDoc(_captainCollection(_captainDb, 'orderHistory'), _addRid({
       tableId: order?.tableNumber || order?.table || '?',
       customerName: order?.customerName || 'Walk-in',
       customerPhone: order?.customerPhone || '',
@@ -15769,7 +15830,7 @@ async function confirmCaptainWaiterAssign() {
       servedAtFull: new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }),
       savedBy: 'captain',
       timestamp: Date.now()
-    });
+    }));
 
   } catch(e) {
     captainToast('Assign failed: ' + e.message, '#dc2626');
@@ -16556,6 +16617,8 @@ async function _loadBillingMenuPrices() {
       const newMap = {};
       snap.forEach(function(d) {
         const item = d.data();
+        // ── MULTI-RESTAURANT: sirf apne restaurant ke menu items ──
+        if (!_isMyRestaurant(item)) return;
         const name = (item.name || '').toLowerCase().trim();
         const price = parseFloat(item.price) || parseFloat(item.rate) || 0;
         if (name && price > 0) {
@@ -16566,7 +16629,6 @@ async function _loadBillingMenuPrices() {
         }
       });
       window._billingMenuPriceMap = newMap;
-      // console.log('[Captain] Billing menu price map loaded:', Object.keys(newMap).length, 'items');
     });
   } catch(e) {
     console.warn('[Captain] Billing menu price load failed:', e.message);
@@ -16582,6 +16644,8 @@ async function _loadMenuAndCatsFromFirebase() {
     var fbItems = [];
     menuSnap.forEach(function(d) {
       var item = d.data();
+      // ── MULTI-RESTAURANT: sirf apne restaurant ka menu ──
+      if (!_isMyRestaurant(item)) return;
       item._fbMenuId = d.id;
       fbItems.push(item);
     });
@@ -16597,7 +16661,9 @@ async function _loadMenuAndCatsFromFirebase() {
     var catSnap = await _fbGetDocs(_captainCollection(_captainDb, _catSyncCol));
     var fbCats = [];
     catSnap.forEach(function(d) {
-      var c = d.data(); c._fbCatId = d.id; fbCats.push(c);
+      var c = d.data();
+      if (!_isMyRestaurant(c)) return;
+      c._fbCatId = d.id; fbCats.push(c);
     });
     if (fbCats.length > 0) {
       _capExtraCats = fbCats;
@@ -16618,7 +16684,7 @@ async function _loadMenuAndCatsFromFirebase() {
 async function _saveMenuItemToFirebase(item) {
   if (!_menuFbReady || !_captainDb || !_captainCollection || !_captainAddDoc || !_fbSetDoc || !_fbDocFn) return;
   try {
-    var data = {
+    var data = _addRid({
       id: item.id, name: item.name, cat: item.cat,
       price: item.price, halfPrice: item.halfPrice,
       emoji: item.emoji || '🍽️', desc: item.desc || '',
@@ -16627,7 +16693,7 @@ async function _saveMenuItemToFirebase(item) {
       active: item.active !== false,
       _capImage: item._capImage || null,
       savedAt: Date.now()
-    };
+    });
     if (item._fbMenuId) {
       await _fbSetDoc(_fbDocFn(_captainDb, _menuSyncCol, item._fbMenuId), data);
     } else {
@@ -16762,6 +16828,8 @@ async function _loadWaitersFromFirebase() {
     var fbWaiters = [];
     snap.forEach(function(d) {
       var w = d.data();
+      // ── MULTI-RESTAURANT: sirf apne restaurant ke waiters ──
+      if (!_isMyRestaurant(w)) return;
       w._fbWaiterId = d.id;
       fbWaiters.push(w);
     });
@@ -16784,7 +16852,7 @@ async function _loadWaitersFromFirebase() {
 async function _saveWaiterToFirebase(waiter) {
   if (!_waiterFbReady || !_captainDb || !_captainCollection || !_captainAddDoc || !_wFbSetDoc || !_wFbDoc) return;
   try {
-    var data = {
+    var data = _addRid({
       name:           waiter.name,
       phone:          waiter.phone || '',
       floor:          waiter.floor || 'Floor 1',
@@ -16798,7 +16866,7 @@ async function _saveWaiterToFirebase(waiter) {
       shiftCustomStart: waiter.shiftCustomStart || null,
       shiftCustomEnd:   waiter.shiftCustomEnd   || null,
       savedAt: Date.now()
-    };
+    });
     if (waiter._fbWaiterId) {
       await _wFbSetDoc(_wFbDoc(_captainDb, _waiterSyncCol, waiter._fbWaiterId), data);
       // console.log('✅ Waiter updated in Firebase:', waiter.name);
@@ -16929,9 +16997,12 @@ function startNotificationsListener() {
     var q = mod.query(notifRef, mod.orderBy('createdAt','desc'), mod.limit(20));
     _captainOnSnapshot(q, function(snap) {
       var now2min = Date.now() - (2 * 60 * 1000); // har snapshot pe fresh cutoff
+      var myRid = window._captainRestaurantId || (window._loggedInCaptain && window._loggedInCaptain.restaurantId) || null;
       var notifs = [];
       snap.forEach(function(d) {
         var n = d.data(); n._fbId = d.id;
+        // ── MULTI-RESTAURANT FIX: sirf apne restaurant ki notifications ──
+        if (myRid && n.restaurantId && n.restaurantId !== myRid) return;
         if ((n.createdAt || 0) >= now2min) notifs.push(n); // sirf 2 min wali
       });
       notifs.sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
@@ -16964,6 +17035,8 @@ function _startNotifListenerFallback() {
     var notifs = [];
     snap.forEach(function(d) {
       var n = d.data(); n._fbId = d.id;
+      // ── MULTI-RESTAURANT: sirf apne restaurant ki notifications ──
+      if (!_isMyRestaurant(n)) return;
       if ((n.createdAt || 0) >= now2min) notifs.push(n);
     });
     notifs.sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
@@ -17077,14 +17150,14 @@ async function addNotificationToFirebase(title, body, type, icon) {
     keys.slice(0, 50).forEach(function(k){ delete _captainNotifRateMap[k]; });
   }
   try {
-    await _captainAddDoc(_captainCollection(_captainDb, 'captainNotifications'), {
+    await _captainAddDoc(_captainCollection(_captainDb, 'captainNotifications'), _addRid({
       title: title || '',
       body:  body  || '',
       type:  type  || 'info',
       icon:  icon  || '',
       read:  false,
       createdAt: now
-    });
+    }));
   } catch(e) { console.warn('Notif add error:', e); }
 }
 
@@ -17134,7 +17207,12 @@ async function _loadReportsFromFirebase() {
   if (!_captainDb || !_captainCollection) return;
   try {
     const { getDocs, collection } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-    const snap = await getDocs(collection(_captainDb, 'orders'));
+    const { query: rQuery, where: rWhere } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+    var _repRid = window._captainRestaurantId || (window._loggedInCaptain && window._loggedInCaptain.restaurantId) || '';
+    var _repQ = _repRid
+      ? rQuery(collection(_captainDb, 'orders'), rWhere('restaurantId', '==', _repRid))
+      : collection(_captainDb, 'orders');
+    const snap = await getDocs(_repQ);
 
     var allOrders = [];
     snap.forEach(function(d) { allOrders.push(d.data()); });
@@ -17215,7 +17293,11 @@ var _reportsListenerStarted = false;
 function startReportsListener() {
   if (_reportsListenerStarted || !_captainDb || !_captainCollection || !_captainOnSnapshot) return;
   _reportsListenerStarted = true;
-  _captainOnSnapshot(_captainCollection(_captainDb, 'orders'), function() {
+  var _repLisRid = window._captainRestaurantId || (window._loggedInCaptain && window._loggedInCaptain.restaurantId) || '';
+  var _repLisQ = _repLisRid && window._captainQuery && window._captainWhere
+    ? window._captainQuery(_captainCollection(_captainDb, 'orders'), window._captainWhere('restaurantId', '==', _repLisRid))
+    : _captainCollection(_captainDb, 'orders');
+  _captainOnSnapshot(_repLisQ, function() {
     _loadReportsFromFirebase();
   });
 }
@@ -17255,6 +17337,8 @@ function _startCustomerListener() {
     _custData = [];
     snap.forEach(function(d) {
       var c = d.data(); c._fbId = d.id;
+      // ── MULTI-RESTAURANT: sirf apne restaurant ke customers ──
+      if (!_isMyRestaurant(c)) return;
       _custData.push(c);
     });
     _custData.sort(function(a,b){ return (b.totalSpend||0)-(a.totalSpend||0); });
@@ -17443,13 +17527,13 @@ async function doAddCustomer() {
   if (!name||!phone){showToast('⚠️ Naam aur phone required hai!');return;}
   if (!_custDb||!_captainAddDoc||!_captainCollection){showToast('⚠️ Firebase ready nahi');return;}
   try {
-    await _captainAddDoc(_captainCollection(_custDb,'captainCustomers'),{
+    await _captainAddDoc(_captainCollection(_custDb,'captainCustomers'), _addRid({
       name:name,phone:phone,email:email,birthday:bday,
       loyaltyPoints:pts,totalSpend:0,visits:0,avgRating:0,
       tier:'bronze',visitStreak:0,lastVisit:null,
       pointsEarnedAt:pts>0?Date.now():null,
       createdAt:Date.now()
-    });
+    }));
     closeModal('addCustModal');
     ['nc-name','nc-phone','nc-email','nc-bday','nc-pts'].forEach(function(id){var el=document.getElementById(id);if(el)el.value=id==='nc-pts'?'0':'';});
     showToast('✅ Customer add ho gaya! Firebase mein save.');
@@ -17640,7 +17724,7 @@ async function _autoPointsFromOrder(custName, total) {
     } else {
       // Naya customer — automatically add karo Firebase mein
       var {addDoc,collection} = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-      await addDoc(collection(_custDb,'captainCustomers'),{
+      await addDoc(collection(_custDb,'captainCustomers'), _addRid({
         name:           custName,
         phone:          '',
         email:          '',
@@ -17655,7 +17739,7 @@ async function _autoPointsFromOrder(custName, total) {
         pointsEarnedAt: Date.now(),
         createdAt:      Date.now(),
         autoAdded:      true   // flag: order se auto create hua
-      });
+      }));
       showToast('👤 Naya customer auto-add: '+custName+' ('+earned+' pts)!');
       addNotificationToFirebase('👤 New Customer Auto-Added', custName+' ka profile order se automatically create hua!','success','👤');
     }
@@ -17950,7 +18034,11 @@ function _timeAgoMs(ts) {
     // Live orders listener
     _captainOnSnapshot(_captainCollection(_captainDb, 'orders'), function(snap) {
       _anLiveOrders = [];
-      snap.forEach(function(d) { _anLiveOrders.push(Object.assign({ _fbId: d.id }, d.data())); });
+      snap.forEach(function(d) {
+        var o = Object.assign({ _fbId: d.id }, d.data());
+        if (!_isMyRestaurant(o)) return;
+        _anLiveOrders.push(o);
+      });
       _ordersLoaded = true;
       if (_historyLoaded) _merge(); else _anAllOrders = _anLiveOrders, _anFirebaseReady = true, _anRenderTab(_anCurrentTabLocal);
     });
@@ -17958,7 +18046,11 @@ function _timeAgoMs(ts) {
     // Order history listener
     _captainOnSnapshot(_captainCollection(_captainDb, 'orderHistory'), function(snap) {
       _anHistoryOrders = [];
-      snap.forEach(function(d) { _anHistoryOrders.push(Object.assign({ _fbId: d.id }, d.data())); });
+      snap.forEach(function(d) {
+        var o = Object.assign({ _fbId: d.id }, d.data());
+        if (!_isMyRestaurant(o)) return;
+        _anHistoryOrders.push(o);
+      });
       _historyLoaded = true;
       if (_ordersLoaded) _merge();
     });
@@ -18489,7 +18581,10 @@ if (document.querySelector('.page.active[id="page-orderplace"]') && window.inner
       function(snap) {
         var allStaff = [];
         snap.forEach(function(d) {
-          allStaff.push(Object.assign({ _fbStaffId: d.id }, d.data()));
+          var s = Object.assign({ _fbStaffId: d.id }, d.data());
+          // ── MULTI-RESTAURANT: sirf apne restaurant ka staff ──
+          if (!_isMyRestaurant(s)) return;
+          allStaff.push(s);
         });
 
         // Filter only Waiter role
@@ -19254,6 +19349,15 @@ function confirmAndPlaceOrder() {
   }, 100);
 }
 </script>
+<script>
+function captainPrintBill(){
+  var w=window.open('','_blank');
+  var c=document.getElementById('billPrintBody').innerHTML;
+  var s='\x3Cscript\x3Ewindow.onload=function(){window.print();window.close()}\x3C\x2Fscript\x3E';
+  w.document.write('<!DOCTYPE html><html><head><title>Bill</title><style>body{margin:0;padding:16px;font-family:Courier New,monospace}@media print{body{padding:0}}</style></head><body>'+c+s+'</body></html>');
+  w.document.close();
+}
+</script>
 </body>
 </html>
 <!-- ═══════════════════════════════════════════════════════════════
@@ -19358,13 +19462,21 @@ function confirmAndPlaceOrder() {
 
     _captainOnSnapshot(_captainCollection(_captainDb, 'orders'), function(snap) {
       _live = [];
-      snap.forEach(function(d) { _live.push(Object.assign({ _fbId: d.id }, d.data())); });
+      snap.forEach(function(d) {
+        var o = Object.assign({ _fbId: d.id }, d.data());
+        if (!_isMyRestaurant(o)) return;
+        _live.push(o);
+      });
       _merge();
     });
 
     _captainOnSnapshot(_captainCollection(_captainDb, 'orderHistory'), function(snap) {
       _hist = [];
-      snap.forEach(function(d) { _hist.push(Object.assign({ _fbId: d.id }, d.data())); });
+      snap.forEach(function(d) {
+        var o = Object.assign({ _fbId: d.id }, d.data());
+        if (!_isMyRestaurant(o)) return;
+        _hist.push(o);
+      });
       _merge();
     });
   }
@@ -19460,10 +19572,11 @@ function confirmAndPlaceOrder() {
     _captainOnSnapshot(_captainCollection(_captainDb, 'orderHistory'), function(snap) {
       var orders = [];
       snap.forEach(function(d) {
-        orders.push(Object.assign({ _fbId: d.id }, d.data()));
+        var o = Object.assign({ _fbId: d.id }, d.data());
+        if (!_isMyRestaurant(o)) return;
+        orders.push(o);
       });
       _renderCusHistory(orders);
-      // console.log('\uD83D\uDCDC Customer History loaded: ' + orders.length + ' records');
     });
 
     // Reload when user navigates to cushistory tab
@@ -19512,6 +19625,8 @@ function confirmAndPlaceOrder() {
     // ── A. Tables collection (billing.html ke tables) ──
     _captainOnSnapshot(_captainCollection(_captainDb, 'tables'), function(snap) {
       var fbTables = [];
+      // ── MULTI-RESTAURANT FIX ──
+      var myRid = window._captainRestaurantId || (window._loggedInCaptain && window._loggedInCaptain.restaurantId) || null;
 
       // ── Captain ka assigned table range filter ──
       var cap = window._loggedInCaptain;
@@ -19520,6 +19635,8 @@ function confirmAndPlaceOrder() {
 
       snap.forEach(function(d) {
         var td = d.data();
+        // sirf apne restaurant ki tables
+        if (myRid && td.restaurantId !== myRid) return;
         var tNum = parseInt(d.id) || 0;
 
         // Sirf captain ke assigned tables dikhao
@@ -19567,7 +19684,11 @@ function confirmAndPlaceOrder() {
     });
 
     // ── B. Orders collection — live orders se table status update ──
-    _captainOnSnapshot(_captainCollection(_captainDb, 'orders'), function(snap) {
+    var _tblOrdRid = window._captainRestaurantId || (window._loggedInCaptain && window._loggedInCaptain.restaurantId) || '';
+    var _tblOrdQ = (_tblOrdRid && window._captainQuery && window._captainWhere)
+      ? window._captainQuery(_captainCollection(_captainDb, 'orders'), window._captainWhere('restaurantId', '==', _tblOrdRid))
+      : _captainCollection(_captainDb, 'orders');
+    _captainOnSnapshot(_tblOrdQ, function(snap) {
       // Clear and rebuild
       var newLiveOrders = {};
       snap.forEach(function(d) {
@@ -19663,11 +19784,11 @@ function confirmAndPlaceOrder() {
     var notes   = (document.getElementById('bkNotes')||{}).value || '';
     if (!name) { _t('⚠️ Customer ka naam dalo!'); return; }
     if (!date) { _t('⚠️ Date choose karo!'); return; }
-    var booking = {
+    var booking = _addRid({
       customerName: name, phone: phone, guests: guests,
       date: date, time: time, notes: notes,
       status: 'confirmed', createdAt: Date.now()
-    };
+    });
     if (window._captainDb && window._captainAddDoc && window._captainCollection) {
       _captainAddDoc(_captainCollection(_captainDb, 'captainBookings'), booking)
         .then(function(ref) {
@@ -19686,10 +19807,14 @@ function confirmAndPlaceOrder() {
   function startBookingsListener() {
     _captainOnSnapshot(_captainCollection(_captainDb, 'captainBookings'), function(snap) {
       var bookings = [];
-      snap.forEach(function(d) { bookings.push(Object.assign({ _fbBkId: d.id }, d.data())); });
+      snap.forEach(function(d) {
+        var b = Object.assign({ _fbBkId: d.id }, d.data());
+        // ── MULTI-RESTAURANT: sirf apne restaurant ki bookings ──
+        if (!_isMyRestaurant(b)) return;
+        bookings.push(b);
+      });
       renderBookingGrid(bookings);
       updateBookingCounts(bookings);
-      // console.log('[Bookings FB] Loaded:', bookings.length, 'bookings');
     });
   }
 
@@ -19748,10 +19873,14 @@ function confirmAndPlaceOrder() {
   function startDeliveryListener() {
     _captainOnSnapshot(_captainCollection(_captainDb, 'captainDelivery'), function(snap) {
       var orders = [];
-      snap.forEach(function(d) { orders.push(Object.assign({ _fbDelId: d.id }, d.data())); });
+      snap.forEach(function(d) {
+        var o = Object.assign({ _fbDelId: d.id }, d.data());
+        // ── MULTI-RESTAURANT: sirf apne restaurant ki deliveries ──
+        if (!_isMyRestaurant(o)) return;
+        orders.push(o);
+      });
       renderDeliveryGrid(orders);
       updateDeliveryCounts(orders);
-      // console.log('[Delivery FB] Loaded:', orders.length, 'delivery orders');
     });
   }
 
@@ -19814,11 +19943,11 @@ function confirmAndPlaceOrder() {
   window.acceptOnlineOrder = function(elId, orderId, platform, customer, items, amount) {
     if (typeof _origAcceptOnline === 'function') _origAcceptOnline(elId, orderId, platform, customer, items, amount);
     if (window._captainDb && window._captainAddDoc && window._captainCollection) {
-      _captainAddDoc(_captainCollection(_captainDb, 'captainDelivery'), {
+      _captainAddDoc(_captainCollection(_captainDb, 'captainDelivery'), _addRid({
         orderId: orderId, platform: platform, customerName: customer,
         items: items, amount: amount, status: 'accepted',
         rider: '', address: '', createdAt: Date.now()
-      }).catch(function(){});
+      })).catch(function(){});
     }
   };
 
@@ -19829,9 +19958,12 @@ function confirmAndPlaceOrder() {
   function startInventoryListener() {
     _captainOnSnapshot(_captainCollection(_captainDb, 'captainInventory'), function(snap) {
       var items = [];
-      snap.forEach(function(d) { items.push(Object.assign({ _fbInvId: d.id }, d.data())); });
+      snap.forEach(function(d) {
+        var item = Object.assign({ _fbInvId: d.id }, d.data());
+        if (!_isMyRestaurant(item)) return;
+        items.push(item);
+      });
       renderInventory(items);
-      // console.log('[Inventory FB] Loaded:', items.length, 'items');
     });
   }
 
@@ -20125,7 +20257,7 @@ function captainPrintQR(){
   var url=localStorage.getItem('captain_menu_url')||'';
   var qrSrc='https://api.qrserver.com/v1/create-qr-code/?data='+encodeURIComponent(url)+'&size=250x250&margin=15&format=png';
   var win=window.open('','_blank'); if(!win){ showToast('Popup blocked! Allow karo.','#f59e0b'); return; }
-  win.document.write('<!DOCTYPE html><html><head><title>QR</title><style>body{text-align:center;padding:40px;font-family:Arial}.box{display:inline-block;border:3px solid #000;border-radius:16px;padding:28px}</style></head><body><div class="box"><h2>🍽️ Scan for Menu</h2><img src="'+qrSrc+'" width="250" height="250"><br><small>'+url+'</small></div><script>window.onload=function(){window.print()}<\/script></body></html>');
+  win.document.write('<!DOCTYPE html><html><head><title>QR</title><style>body{text-align:center;padding:40px;font-family:Arial}.box{display:inline-block;border:3px solid #000;border-radius:16px;padding:28px}</style></head><body><div class="box"><h2>🍽️ Scan for Menu</h2><img src="'+qrSrc+'" width="250" height="250"><br><small>'+url+'</small></div>\x3Cscript\x3Ewindow.onload=function(){window.print()}\x3C\x2Fscript\x3E</body></html>');
   win.document.close();
 }
 function captainGenerateNewQR(){
@@ -20135,6 +20267,13 @@ function captainGenerateNewQR(){
 }
 function captainOpenMenuUrl(){ var url=localStorage.getItem('captain_menu_url')||''; if(url) window.open(url,'_blank'); }
 document.addEventListener('DOMContentLoaded',function(){
+  var _urlRid   = new URLSearchParams(window.location.search).get('rid');
+  var _savedRid = _urlRid || localStorage.getItem('captain_restaurant_id');
+  if (_savedRid) {
+    window._captainRestaurantId = _savedRid;
+    window._sip_restaurantId    = _savedRid;
+    localStorage.setItem('captain_restaurant_id', _savedRid);
+  }
   var sk=localStorage.getItem('captain_gemini_key')||'';
   var ki=document.getElementById('captainGeminiKeyInput'); var ks=document.getElementById('captainKeyStatus');
   if(ki&&sk){ ki.value=sk; if(ks){ ks.textContent='✅ Key saved — AI ready!'; ks.style.color='var(--G600)'; } }
