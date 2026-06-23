@@ -383,11 +383,11 @@ a{text-decoration:none;color:inherit;}
 .cat-section-title{font-family:var(--font-circular);font-size:20px;font-weight:700;color:var(--text2);padding:0 20px 12px;display:flex;align-items:center;gap:10px;}
 
 /* ── DISH GRID ── */
-.dish-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:0 16px 20px;}
-.dish-card{border-radius:16px;background:var(--glass);border:1px solid var(--border);overflow:hidden;cursor:pointer;transition:transform 0.2s,box-shadow 0.25s,border-color 0.25s;position:relative;display:flex;flex-direction:column;}
+.dish-grid{display:grid;grid-template-columns:repeat(2,1fr)!important;gap:12px;padding:0 16px 20px;width:100%;box-sizing:border-box;}.dish-card{max-width:100%;}
+.dish-card{border-radius:16px;background:var(--glass);border:1px solid var(--border);overflow:hidden;cursor:pointer;transition:transform 0.2s,box-shadow 0.25s,border-color 0.25s;position:relative;display:flex!important;flex-direction:column!important;width:100%;min-width:0;box-sizing:border-box;}
 .dish-card:hover{transform:translateY(-4px) scale(1.01);box-shadow:0 12px 40px rgba(0,0,0,0.4),0 0 0 1px rgba(168,85,247,0.2),0 0 20px rgba(168,85,247,0.08);border-color:rgba(168,85,247,0.2);}
 .dish-card:active{transform:scale(0.97);}
-.dish-img-wrap{height:130px;position:relative;overflow:hidden;flex-shrink:0;}
+.dish-img-wrap{height:130px;position:relative;overflow:hidden;flex-shrink:0;width:100%;}
 .dish-img-wrap img{transition:transform 0.5s ease;}
 .dish-card:hover .dish-img-wrap img{transform:scale(1.08);}
 .dish-veg-badge{position:absolute;top:7px;left:7px;width:15px;height:15px;border-radius:3px;border:2px solid;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);-webkit-backdrop-filter:none;backdrop-filter:none;}
@@ -3009,7 +3009,7 @@ window.__loadMenu = async function() {
       const billingDishes = [];
       snap2.forEach(d => {
         const raw = {...d.data(), _fbId: d.id};
-        if(raw.imageUrl && raw.imageUrl.startsWith('data:')) raw.imageUrl = '';
+        if(raw.imageUrl && !raw.imageUrl.startsWith('http')) raw.imageUrl = '';
         billingDishes.push(raw);
       });
 
@@ -3114,7 +3114,7 @@ window.__loadMenu = async function() {
             priceNum: dish.price,
             rating: dish.rating ? String(dish.rating) : '4.5',
             desc: dish.desc || '',
-            image: dish.imageUrl || '',
+            image: (dish.imageUrl||'').startsWith('http') ? dish.imageUrl : '',
             emoji: dish.emoji||'🍽️',
             veg: dish.type === 'Vegetarian' || dish.type === 'Vegan',
             offer: isHotDeal ? (dish.dealLabel||'🏷️ Hot Deal') : isChefPick ? '👨‍🍳 Chef Pick' : isHot ? '🔥 Hot' : (dish.offerText||null),
@@ -3334,13 +3334,6 @@ let isSearchOpen    = false;
   }
   if (!restaurantId) {
     console.error('[Siplora Menu] restaurantId (rid) missing from URL — purana QR code ho sakta hai. Naya QR code billing panel se generate karo.');
-    // Show visible warning banner
-    setTimeout(function() {
-      var warn = document.createElement('div');
-      warn.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#ef4444;color:#fff;text-align:center;padding:10px 16px;font-size:13px;font-weight:700;font-family:system-ui;line-height:1.5';
-      warn.textContent = '⚠️ Menu URL mein Restaurant ID nahi hai. Billing Panel > QR Codes se naya QR generate karo.';
-      document.body && document.body.prepend(warn);
-    }, 800);
   }
 })();
 
@@ -3854,8 +3847,10 @@ function dishCard(d) {
         <button class="dish-qty-plus" onclick="event.stopPropagation();quickAddDish('${d.id}')">+</button>
        </div>`
     : `<button class="dish-add-btn-corner" onclick="event.stopPropagation();quickAddDish('${d.id}')"><span class="add-plus-icon">+</span><span class="add-label">Add</span></button>`;
-  const imgHtml = d.image && d.image !== ''
-    ? `<img src="${d.image}" alt="${d.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none';this.parentElement.style.background='linear-gradient(135deg,#1a1a2e,#13131E)';this.parentElement.innerHTML+='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;font-size:40px\\'>${d.emoji||'🍽️'}</div>';" />`
+  // Clean image - sirf valid http/https URL accept karo, baki sab reject
+  const cleanImg = (d.image && (d.image.startsWith('http://') || d.image.startsWith('https://') || d.image.startsWith('data:'))) ? d.image : '';
+  const imgHtml = cleanImg
+    ? `<img src="${cleanImg}" alt="${d.name}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.src='';this.style.display='none';" />`
     : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:44px;background:linear-gradient(135deg,#1a1a2e,#13131E)">${d.emoji||'🍽️'}</div>`;
   // Live rating from Firebase (stored in window._dishRatings)
   const liveRating = window._dishRatings?.[d.id];

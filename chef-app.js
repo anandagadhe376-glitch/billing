@@ -389,10 +389,14 @@ async function loadDashboardFromFirebase(){
     const todayTs = Timestamp.fromDate(todayStart);
 
     // Firebase se orders + gst_invoices + orderHistory parallel mein load karo
+    const _dashRid = window._chefRestaurantId || '';
+    const _ordQ = _dashRid ? query(collection(db,'orders'), where('restaurantId','==',_dashRid)) : collection(db,'orders');
+    const _gstQ = _dashRid ? query(collection(db,'gst_invoices'), where('restaurantId','==',_dashRid)) : collection(db,'gst_invoices');
+    const _ohQ  = _dashRid ? query(collection(db,'orderHistory'), where('restaurantId','==',_dashRid)) : collection(db,'orderHistory');
     const [ordSnap, gstSnap, ohSnap] = await Promise.all([
-      getDocs(collection(db,'orders')).catch(()=>({docs:[],forEach:()=>{}})),
-      getDocs(collection(db,'gst_invoices')).catch(()=>({docs:[]})),
-      getDocs(collection(db,'orderHistory')).catch(()=>({docs:[]})),
+      getDocs(_ordQ).catch(()=>({docs:[],forEach:()=>{}})),
+      getDocs(_gstQ).catch(()=>({docs:[]})),
+      getDocs(_ohQ).catch(()=>({docs:[]})),
     ]);
 
     // Orders parse karo
@@ -3408,11 +3412,15 @@ async function loadAnalyticsFromFirebase(){
     else if(_anPeriod==='week'){fromDate.setDate(fromDate.getDate()-7);}
     else{fromDate.setDate(1);fromDate.setHours(0,0,0,0);}
 
-    // Load all collections in parallel
+    // Load all collections in parallel — sirf apne restaurant ka data
+    const _anRid = window._chefRestaurantId || '';
+    const _anOrdQ = _anRid ? query(collection(db,'orders'), where('restaurantId','==',_anRid)) : collection(db,'orders');
+    const _anGstQ = _anRid ? query(collection(db,'gst_invoices'), where('restaurantId','==',_anRid)) : collection(db,'gst_invoices');
+    const _anOhQ  = _anRid ? query(collection(db,'orderHistory'), where('restaurantId','==',_anRid)) : collection(db,'orderHistory');
     const [ordSnap,gstSnap,ohSnap]=await Promise.all([
-      getDocs(collection(db,'orders')),
-      getDocs(collection(db,'gst_invoices')).catch(()=>({docs:[]})),
-      getDocs(collection(db,'orderHistory')).catch(()=>({docs:[]}))
+      getDocs(_anOrdQ),
+      getDocs(_anGstQ).catch(()=>({docs:[]})),
+      getDocs(_anOhQ).catch(()=>({docs:[]}))
     ]);
 
     const orders=[];
@@ -8177,17 +8185,24 @@ window.addEventListener('load', function(){
     const fbApp=apps.length?apps[0]:initializeApp(FB_CFG);
     const db=getFirestore(fbApp);
     window.__chefDb=db; window.__chefDoc=doc; window.__chefUpdateDoc=updateDoc;
-    // Dashboard Firebase data load karo on startup
-    setTimeout(()=>{ if(typeof loadDashboardFromFirebase==='function') loadDashboardFromFirebase(); }, 1200);
+    // ── MULTI-RESTAURANT: fire mods globally save karo ──
+    window.__chefFireMods = { collection, query, where, onSnapshot, db };
     window.__chefCollection=collection; window.__chefOnSnapshot=onSnapshot;
-    // 🔥 Recipe Book — Firebase se saved recipes load karo
-    setTimeout(()=>{ if(typeof rbLoadFromFirebase==='function') rbLoadFromFirebase(); },1500);
-    showToast('🔥 Firebase connected — Live orders ready!');
+    showToast('🔥 Firebase connected!');
+
+    // ── Login ke baad startChefListeners() call hoga ──
+    // Page load pe listeners shuru nahi karo — restaurantId pehle set hona chahiye
+    window._chefStartListeners = function() {
+      var rid = window._chefRestaurantId || '';
+      if (!rid) {
+        console.warn('[ChefPanel] restaurantId nahi mila — listeners start nahi honge');
+        return;
+      }
 
     // ══ MASTER DASHBOARD TABLES SYNC ══
-    // billing.html ke tables collection se real-time status lo
     window._masterTablesData = {};
-    onSnapshot(collection(db,'tables'), snap=>{
+    var _tablesQuery = query(collection(db,'tables'), where('restaurantId','==', rid));
+    onSnapshot(_tablesQuery, snap=>{
       const masterMap={};
       snap.forEach(d=>{
         const tNum=parseInt(d.id);
@@ -8215,7 +8230,8 @@ window.addEventListener('load', function(){
 
     // Live listener on orders — pending & accepted
     let _prevOrderIds=new Set();
-    onSnapshot(collection(db,'orders'), snap=>{
+    var _ordersQuery = query(collection(db,'orders'), where('restaurantId','==', rid));
+    onSnapshot(_ordersQuery, snap=>{
       const orders=[];
       snap.forEach(d=>{ const o={_fbId:d.id,...d.data()}; if(o.status!=='paid'&&o.status!=='cancelled'&&o.source!=='order-desk') orders.push(o); });
       // Sort: NEWEST orders FIRST (by timestamp descending) — naye orders hamesha upar
@@ -8302,6 +8318,12 @@ window.addEventListener('load', function(){
       // Also update dashboard
       renderDashboard();
     });
+
+    // Dashboard + Recipe load karo
+    setTimeout(()=>{ if(typeof loadDashboardFromFirebase==='function') loadDashboardFromFirebase(); }, 400);
+    setTimeout(()=>{ if(typeof rbLoadFromFirebase==='function') rbLoadFromFirebase(); }, 600);
+    }; // end window._chefStartListeners
+
   }catch(e){ console.warn('[CHEF FB] Firebase error:',e.message); }
 })();
 }); // end window load
@@ -9802,7 +9824,9 @@ window.ohUpdateBadges = ohUpdateBadges;
       // Watch for captain-confirmed orders (captain ne confirm kiya)
       // These come in with status='confirmed_by_captain'
       if (onSnapshot && collection && db) {
-        onSnapshot(collection(db, 'orders'), snap => {
+        const _ccRid = window._chefRestaurantId || '';
+        const _ccOrdQ = _ccRid ? query(collection(db,'orders'), where('restaurantId','==',_ccRid)) : collection(db,'orders');
+        onSnapshot(_ccOrdQ, snap => {
           snap.docChanges().forEach(change => {
             const o = { _fbId: change.doc.id, ...change.doc.data() };
             
@@ -12536,7 +12560,7 @@ function _clWaitForDb(maxWaitMs) {
 }
 
 async function _clFetchChefs() {
-  // Pehle cached localStorage se try karo (instant fallback agar Firestore slow ho)
+  // Pehle cached localStorage se try karo
   var cached = [];
   try { cached = JSON.parse(localStorage.getItem('cc_chefs') || '[]'); } catch(e) {}
 
@@ -12554,6 +12578,19 @@ async function _clFetchChefs() {
     console.warn('[ChefLogin] Firestore fetch failed, using cached list:', e.message);
     return cached;
   }
+}
+
+// ── MULTI-RESTAURANT: restaurantId ke saath Firestore query helper ──
+// Chef login ke baad window._chefRestaurantId set hota hai
+// Iska use karo orders/tables/inventory fetch karne mein
+function _chefCol(db, colName) {
+  const { collection, query, where } = window.__chefFireMods || {};
+  var rid = window._chefRestaurantId || '';
+  if (rid && collection && query && where) {
+    return query(collection(db, colName), where('restaurantId', '==', rid));
+  }
+  if (collection) return collection(db, colName);
+  return null;
 }
 
 async function chefLogin() {
@@ -12578,26 +12615,58 @@ async function chefLogin() {
 
   if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'LOGIN'; }
 
-  var match = chefs.find(function(c) {
+  // ── MULTI-RESTAURANT: email+password match karo, phir restaurantId se filter ──
+  var allMatches = chefs.filter(function(c) {
     return c.email && c.password &&
       c.email.toLowerCase() === email.toLowerCase() &&
       c.password === password &&
       c.status !== 'inactive';
   });
 
+  var match = null;
+  if (allMatches.length === 1) {
+    match = allMatches[0];
+  } else if (allMatches.length > 1) {
+    // Same email/password multiple restaurants mein — restaurantId se exact match prefer karo
+    var rid = window._chefRestaurantId || '';
+    match = allMatches.find(function(c) { return c.restaurantId === rid; }) || allMatches[0];
+  }
+
   if (match) {
+    // ── MULTI-RESTAURANT: restaurantId set karo — isi restaurant ka data dikhega ──
+    window._chefRestaurantId = match.restaurantId || '';
     window._chefLoggedIn = true;
     window._chefLoggedInData = match;
-    try { sessionStorage.setItem('chef_session', JSON.stringify({ id: match.id, name: match.name, email: match.email })); } catch(e) {}
+    try {
+      sessionStorage.setItem('chef_session', JSON.stringify({
+        id: match.id,
+        name: match.name,
+        email: match.email,
+        restaurantId: match.restaurantId || ''
+      }));
+    } catch(e) {}
+
+    // Restaurant ka naam header mein dikhao
+    if (match.restaurantName) {
+      var rnEl = document.getElementById('chef-restaurant-name');
+      if (rnEl) rnEl.textContent = match.restaurantName;
+    }
+
     var loginScreen = document.getElementById('chefLoginScreen');
     if (loginScreen) {
       loginScreen.classList.add('hide');
       setTimeout(function() { loginScreen.style.display = 'none'; }, 520);
     }
-    // Sidebar profile name update karo agar match mile
     var nameEl = document.querySelector('.sb-profile-name');
     if (nameEl && match.name) nameEl.textContent = match.name;
     if (typeof showToast === 'function') showToast('✅ Welcome ' + (match.name || 'Chef') + '!', 'var(--accent)');
+
+    // ── MULTI-RESTAURANT: login ke baad restaurant-specific listeners start karo ──
+    setTimeout(function() {
+      if (typeof window._chefStartListeners === 'function') {
+        window._chefStartListeners();
+      }
+    }, 300);
   } else {
     if (errEl) errEl.textContent = '❌ Galat Email ya Password — dobara try karo';
     if (boxEl) {
@@ -12613,6 +12682,8 @@ document.addEventListener('DOMContentLoaded', function() {
   try {
     var sess = JSON.parse(sessionStorage.getItem('chef_session') || 'null');
     if (sess && sess.email) {
+      // ── MULTI-RESTAURANT: session se restaurantId restore karo ──
+      window._chefRestaurantId = sess.restaurantId || '';
       window._chefLoggedIn = true;
       window._chefLoggedInData = sess;
       setTimeout(function() {
@@ -12623,7 +12694,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         var nameEl = document.querySelector('.sb-profile-name');
         if (nameEl && sess.name) nameEl.textContent = sess.name;
-      }, 600); // splash khatam hone ka wait
+        if (sess.restaurantName) {
+          var rnEl = document.getElementById('chef-restaurant-name');
+          if (rnEl) rnEl.textContent = sess.restaurantName;
+        }
+        // ── MULTI-RESTAURANT: session restore pe bhi listeners restart karo ──
+        setTimeout(function() {
+          if (typeof window._chefStartListeners === 'function') {
+            window._chefStartListeners();
+          }
+        }, 800);
+      }, 600);
     }
   } catch(e) {}
 });

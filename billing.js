@@ -3564,7 +3564,9 @@ async function saveDish(){
   const name=document.getElementById('dish-name').value.trim();
   if(!name){ showToast('Enter dish name','warning'); return; }
   const imgData = document.getElementById('dish-img-data').value || '';
-  const imgUrl = document.getElementById('dish-img-url').value.trim() || '';
+  // Clean URL — sirf valid http/https URL ya base64 rakhna hai, HTML strip karo
+  let imgUrl = document.getElementById('dish-img-url').value.trim() || '';
+  if(imgUrl && !imgUrl.startsWith('http') && !imgUrl.startsWith('data:')) imgUrl = '';
   const isHot = document.getElementById('dish-hot-toggle').classList.contains('on');
   const isHotDeal = document.getElementById('dish-hotdeals-toggle').classList.contains('on');
   const isChefPick = document.getElementById('dish-chefpicks-toggle').classList.contains('on');
@@ -3613,7 +3615,7 @@ async function saveDish(){
         showToast(_si(28) + ' '+name+' updated! Menu page is live.','success');
       } else {
         const docRef = await window._sipAddDoc(window.__db,'menuItems', dishData);
-        menuItems.push({...dishData, _fbId: docRef.id});
+        // push nahi karo — onSnapshot khud menuItems update karega, duplicate avoid hoga
         showToast(_si(28) + ' '+name+sectionMsg+' Menu + Order Desk dono pe live! '+_si(46)+'','success');
       }
       save('menu', menuItems);
@@ -6839,7 +6841,7 @@ async function initFirebaseMenuSync(){
       if(typeof window.odRenderDishes==='function') window.odRenderDishes();
       if(typeof window.mpBuildCatStrip==='function') window.mpBuildCatStrip();
       if(typeof window.mpRenderGrid==='function') window.mpRenderGrid();
-      if(fbItems.length > 0) showToast(_si(48) + ' Cloud se '+fbItems.length+' dishes loaded!','success');
+      if(fbItems.length > 0 && !window._fbMenuFirstLoad) { window._fbMenuFirstLoad = true; }
     });
 
     showToast(_si(48) + ' Sync connected — Menu LIVE!','success');
@@ -7384,7 +7386,7 @@ function _getMenuUrl(tableNum){
     const base=saved.trim().replace(/\?.*$/,'').replace(/\/$/, '');
     return base+'?table='+tableNum+ridParam;
   }
-  return 'https://anandagadhe376-glitch.github.io/m/?table='+tableNum+ridParam;
+  return 'https://anandagadhe376-glitch.github.io/siplora-menu/?table='+tableNum+ridParam;
 }
 
 function saveMenuUrl(){
@@ -7398,13 +7400,17 @@ function saveMenuUrl(){
 }
 
 function autoDetectUrl(){
-  const url='https://anandagadhe376-glitch.github.io/m/';
-  const inp=document.getElementById('s-menu-url');
-  if(inp) inp.value=url;
-  const preview=document.getElementById('qr-url-preview');
-  if(preview) preview.textContent=_si(41) + ' Detected: '+url+'?table=1&rid=YOUR_ID';
-  showToast('URL set: '+url,'success');
-  if(document.getElementById('page-qr-tables')?.classList.contains('active')) buildAllQRCodes();
+  if(location.protocol==='http:'||location.protocol==='https:'){
+    const folder=location.href.replace(/[^/]*$/,'');
+    const url=folder+'menu.html';
+    const inp=document.getElementById('s-menu-url');
+    if(inp) inp.value=url;
+    const preview=document.getElementById('qr-url-preview');
+    if(preview) preview.textContent=_si(41) + ' Detected: '+url+'?table=1';
+    showToast('URL auto-detected: '+url,'success');
+  } else {
+    showToast(_si(18) + ' File:// protocol — start Live Server and enter the IP','warning');
+  }
 }
 
 let WA_CONFIG = JSON.parse(localStorage.getItem(window._sipKey('lum_wa_config'))||'{}');
@@ -7588,8 +7594,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(inp){
     if(saved) inp.value=saved;
     else if(location.protocol==='http:'||location.protocol==='https:'){
-      // Default to the correct GitHub Pages menu URL
-      inp.value='https://anandagadhe376-glitch.github.io/m/';
+      inp.value=location.href.replace(/[^/]*$/,'')+'menu.html';
     }
   }
   const preview=document.getElementById('qr-url-preview');
@@ -17946,9 +17951,9 @@ function ccLoginWithPassword() {
     return;
   }
 
-  var saved = _ccGetSettings();
-  var ownerUsername = saved.ownerUsername || 'owner';
-  var ownerPassword = saved.ownerPassword || '0000';
+  // Show loading
+  var loginBtn = document.querySelector('#cc-pin-dropdown .btn-gold');
+  if (loginBtn) { loginBtn.disabled = true; loginBtn.textContent = '⏳ Checking...'; }
 
   var captains = _ccGetCaptains();
   var matchCap = captains.find(function(c) {
@@ -17960,27 +17965,36 @@ function ccLoginWithPassword() {
 
   var panel = document.getElementById('cc-pin-panel');
 
-  if (username.toLowerCase() === ownerUsername.toLowerCase() && password === ownerPassword) {
+  function _ccRestoreLoginBtn() {
+    if (loginBtn) { loginBtn.disabled = false; loginBtn.innerHTML = '🔐 LOGIN'; }
+  }
+
+  function _ccDoOwnerLogin() {
     _ccCurrentRole = 'owner';
     if (panel) { panel.style.animation = 'ccSuccessGlow 0.5s ease'; setTimeout(function(){ panel.style.animation = ''; }, 500); }
-    // Clear fields
     var unEl = document.getElementById('cc-login-username');
     var pwEl = document.getElementById('cc-login-password');
     if (unEl) unEl.value = '';
     if (pwEl) pwEl.value = '';
+    _ccRestoreLoginBtn();
     setTimeout(function(){ _ccOpenDashboard('owner'); }, 200);
-  } else if (matchCap) {
+  }
+
+  function _ccDoCaptainLogin(cap) {
     _ccCurrentRole = 'captain';
-    window._ccLoggedInCaptainId = matchCap.id;
+    window._ccLoggedInCaptainId = cap.id;
     if (panel) { panel.style.animation = 'ccSuccessGlow 0.5s ease'; setTimeout(function(){ panel.style.animation = ''; }, 500); }
     var unEl2 = document.getElementById('cc-login-username');
     var pwEl2 = document.getElementById('cc-login-password');
     if (unEl2) unEl2.value = '';
     if (pwEl2) pwEl2.value = '';
+    _ccRestoreLoginBtn();
     setTimeout(function(){ _ccOpenDashboard('captain'); }, 200);
-  } else {
+  }
+
+  function _ccLoginFailed() {
+    _ccRestoreLoginBtn();
     if (err) { err.textContent = '❌ Galat Username ya Password — dobara try karo'; }
-    // Shake panel
     var dotsEl = document.getElementById('cc-pin-dropdown');
     if (dotsEl) {
       dotsEl.style.animation = 'ccShake 0.4s ease';
@@ -17988,6 +18002,76 @@ function ccLoginWithPassword() {
     }
     setTimeout(function(){ if (err) err.textContent = ''; }, 2500);
   }
+
+  // ── Captain match? Login immediately ──
+  if (matchCap) {
+    _ccDoCaptainLogin(matchCap);
+    return;
+  }
+
+  // ── Owner check: Firestore restaurants collection se fetch karo ──
+  var rid = window._sip_restaurantId;
+  if (!rid) {
+    // Fallback to localStorage settings
+    var saved = _ccGetSettings();
+    var ownerUsername = saved.ownerUsername || 'owner';
+    var ownerPassword = saved.ownerPassword || '0000';
+    if (username.toLowerCase() === ownerUsername.toLowerCase() && password === ownerPassword) {
+      _ccDoOwnerLogin();
+    } else {
+      _ccLoginFailed();
+    }
+    return;
+  }
+
+  // Firestore se owner credentials fetch karo
+  (async function() {
+    try {
+      await window._siploraFirebaseLoad();
+      var db = window.__fbDb;
+      if (!db) throw new Error('DB not ready');
+
+      // Saari restaurants fetch karke match karo
+      var snap = await window.__getDocs(window.__col(db, 'restaurants'));
+      var data = null;
+      snap.forEach(function(d) {
+        var ddata = d.data();
+        if (d.id === rid || ddata.restaurantId === rid) { data = ddata; }
+      });
+      if (!data) throw new Error('Restaurant doc not found');
+
+      // Match priority (multiple field name variants support):
+      // 1. ownerUsername + ownerPassword
+      // 2. Username + password (capital U — some docs have this)
+      // 3. ownerName + phone
+      // 4. ownerEmail + phone
+      var matched = false;
+      if (data.ownerUsername && data.ownerPassword) {
+        matched = (username.toLowerCase() === data.ownerUsername.toLowerCase() && password === data.ownerPassword);
+      }
+      if (!matched && data.Username && data.password) {
+        matched = (username.toLowerCase() === data.Username.toLowerCase() && password === data.password);
+      }
+      if (!matched && data.ownerName && data.phone) {
+        matched = (username.toLowerCase() === data.ownerName.toLowerCase() && password === data.phone);
+      }
+      if (!matched && data.ownerEmail && data.phone) {
+        matched = (username.toLowerCase() === data.ownerEmail.toLowerCase() && password === data.phone);
+      }
+
+      if (matched) { _ccDoOwnerLogin(); } else { _ccLoginFailed(); }
+    } catch(e) {
+      console.warn('[CC] Firestore fetch failed, localStorage fallback:', e.message);
+      var saved2 = _ccGetSettings();
+      var ou = saved2.ownerUsername || 'owner';
+      var op = saved2.ownerPassword || '0000';
+      if (username.toLowerCase() === ou.toLowerCase() && password === op) {
+        _ccDoOwnerLogin();
+      } else {
+        _ccLoginFailed();
+      }
+    }
+  })();
 }
 function captainPinKey(k) {
   const err = document.getElementById('captain-pin-error');
@@ -18132,7 +18216,10 @@ function _cpSaveChefs(arr) {
       oldSnap.forEach(function(d) { batch.delete(d.ref); });
       arr.forEach(function(chef) {
         var ref = window._sipDoc(db, 'cc_chefs', chef.id);
-        batch.set(ref, chef);
+        // restaurantId field ensure karo (multi-restaurant ke liye)
+        var chefData = Object.assign({}, chef);
+        if (!chefData.restaurantId) chefData.restaurantId = window._sip_restaurantId || 'norestaurant';
+        batch.set(ref, chefData);
       });
       await batch.commit();
     } catch(e) { console.warn('[ChefPanel] Firebase sync failed:', e.message); }
@@ -18148,7 +18235,7 @@ function _cpStartChefsListener() {
       var db = window.__fbDb; if (!db) return;
       var fb = window.__firebaseModules;
       if (_cpChefsUnsub) _cpChefsUnsub();
-      _cpChefsUnsub = fb.window.__onSnapshot(window._sipCol(db, 'cc_chefs'), function(snap) {
+      _cpChefsUnsub = window.__onSnapshot(window._sipCol(db, 'cc_chefs'), function(snap) {
         var arr = [];
         snap.forEach(function(d) { arr.push(Object.assign({ id: d.id }, d.data())); });
         try { localStorage.setItem(window._sipKey('cc_chefs'), JSON.stringify(arr)); } catch(e) {}
@@ -18196,13 +18283,23 @@ function cpAddChef() {
     return;
   }
 
+  // ── MULTI-RESTAURANT: restaurantId automatically set karo ──
+  var _chefRid = window._sip_restaurantId || 'norestaurant';
+  var _chefRname = '';
+  try {
+    var _rsInfo = window._sip_restaurantInfo || {};
+    _chefRname = _rsInfo.name || _rsInfo.businessName || '';
+  } catch(e) {}
+
   var newChef = {
     id: 'chef_' + Date.now(),
     name: name,
     email: email,
     password: password,
     status: 'active',
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    restaurantId: _chefRid,
+    restaurantName: _chefRname
   };
   chefs.push(newChef);
   _cpSaveChefs(chefs);
@@ -18611,7 +18708,7 @@ function _ccStartCaptainsListener() {
       var db = window.__fbDb; if (!db) return;
       var fb = window.__firebaseModules;
       if (_ccCaptainsUnsub) _ccCaptainsUnsub();
-      _ccCaptainsUnsub = fb.window.__onSnapshot(window._sipCol(db, 'captains'), function(snap) {
+      _ccCaptainsUnsub = window.__onSnapshot(window._sipCol(db, 'captains'), function(snap) {
         var arr = [];
         snap.forEach(function(d) { arr.push(Object.assign({ id: d.id }, d.data())); });
         if (arr.length > 0) {
@@ -18672,7 +18769,7 @@ function _ccLoadCaptainBillsFromFirebase() {
       var db = window.__fbDb; if (!db) return;
       var fb = window.__firebaseModules;
       // Real-time listener for captainBills
-      fb.window.__onSnapshot(window._sipCol(db, 'captainBills'), function(snap) {
+      window.__onSnapshot(window._sipCol(db, 'captainBills'), function(snap) {
         var byCapt = {};
         snap.forEach(function(d) {
           var b = d.data();
@@ -18959,6 +19056,7 @@ function _ccRenderAllCaptains() {
           + '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0">'
           + '<button onclick="ccToggleCaptainStatus(\'' + cap.id + '\')" style="font-family:var(--font-ui);font-size:9px;padding:4px 10px;border-radius:20px;border:1px solid ' + (isActive?'#2ecc71':'#e74c3c') + ';background:' + (isActive?'rgba(46,204,113,0.1)':'rgba(231,76,60,0.1)') + ';color:' + (isActive?'#2ecc71':'#e74c3c') + ';cursor:pointer;display:inline-flex;align-items:center;gap:4px"><svg width="8" height="8" viewBox="0 0 24 24" fill="' + (isActive?'#2ecc71':'#e74c3c') + '" stroke="none"><circle cx="12" cy="12" r="10"/></svg>' + (isActive?'Active':'Inactive') + '</button>'
           + '<button onclick="ccEditCaptain(\'' + cap.id + '\')" style="font-family:var(--font-ui);font-size:9px;padding:4px 10px;border-radius:20px;border:1px solid rgba(52,152,219,0.4);background:rgba(52,152,219,0.1);color:#3498db;cursor:pointer;display:inline-flex;align-items:center;gap:4px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit</button>'
+          + '<button onclick="ccShowCaptainQRById(\'' + cap.id + '\')" style="font-family:var(--font-ui);font-size:9px;padding:4px 10px;border-radius:20px;border:1px solid rgba(46,204,113,0.5);background:rgba(46,204,113,0.1);color:#2ecc71;cursor:pointer;display:inline-flex;align-items:center;gap:4px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> QR</button>'
           + '<button onclick="ccDeleteCaptain(\'' + cap.id + '\')" style="font-family:var(--font-ui);font-size:9px;padding:4px 10px;border-radius:20px;border:1px solid rgba(231,76,60,0.3);background:rgba(231,76,60,0.07);color:#e74c3c;cursor:pointer;display:inline-flex;align-items:center;gap:4px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
           + '</div></div>';
       }).join('');
@@ -19011,6 +19109,9 @@ function ccAddCaptain() {
   _ccRenderAllCaptains();
   showToast('✅ Captain "' + name + '" added!', 'success');
 
+  // Auto QR generate karo
+  setTimeout(function(){ ccShowCaptainQR(newCap); }, 400);
+
   // Firestore mein bhi save karo
   (async function() {
     try {
@@ -19018,6 +19119,8 @@ function ccAddCaptain() {
       var db = window.__fbDb;
       if (!db) return;
       var fbMod = window.__firebaseModules;
+      // ── FIX: restaurantId explicitly add karo taaki captain.html login sahi kare ──
+      var _capRid = window._sip_restaurantId || 'norestaurant';
       await window._sipAddDoc(db, 'captains', {
         name: newCap.name,
         phone: newCap.phone,
@@ -19031,7 +19134,8 @@ function ccAddCaptain() {
         revenue: 0,
         totalOrders: 0,
         createdAt: newCap.createdAt,
-        localId: newCap.id
+        localId: newCap.id,
+        restaurantId: _capRid  // ✅ explicitly save karo
       });
       showToast('☁️ Saved to cloud!', 'success');
     } catch(e) {
@@ -20281,4 +20385,183 @@ window.kdsPrintKOT = async function(safeId) {
   }
 
   document.getElementById('kds-kot-overlay') && document.getElementById('kds-kot-overlay').remove();
+};
+
+// ═══════════════════════════════════════════════════════
+// CAPTAIN QR CODE SYSTEM
+// Captain create hone pe auto QR generate + download
+// ═══════════════════════════════════════════════════════
+
+// QR by ID helper (safe — no inline JS quoting issues)
+window.ccShowCaptainQRById = function(capId) {
+  var cap = _ccGetCaptains().find(function(c){ return c.id === capId; });
+  if (cap) window.ccShowCaptainQR(cap);
+  else showToast('Captain not found!', 'error');
+};
+
+
+window.ccShowCaptainQR = function(cap) {
+  if (!cap || !cap.id) { showToast('Captain data missing!', 'error'); return; }
+
+  var rid = window._sip_restaurantId || 'norestaurant';
+
+  // Captain panel URL — same folder mein captain.html assume karo
+  // Agar alag URL hai toh settings se lo
+  var baseUrl = localStorage.getItem('cc_captain_panel_url') || '';
+  if (!baseUrl) {
+    // Auto detect — same domain, captain.html
+    var loc = window.location;
+    baseUrl = loc.protocol + '//' + loc.host + loc.pathname.replace(/[^/]*$/, '') + 'captain.html';
+  }
+
+  // QR URL: captain panel URL + rid param
+  var qrUrl = baseUrl + '?rid=' + encodeURIComponent(rid);
+
+  // Remove old modal
+  var old = document.getElementById('ccCaptainQRModal');
+  if (old) old.remove();
+
+  // Build modal
+  var modal = document.createElement('div');
+  modal.id = 'ccCaptainQRModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px)';
+
+  modal.innerHTML =
+    '<div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid rgba(201,168,76,0.3);border-radius:20px;padding:28px 24px;max-width:380px;width:92%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6)">'
+    + '<div style="font-size:11px;letter-spacing:3px;color:rgba(201,168,76,0.6);margin-bottom:6px;font-family:monospace">CAPTAIN QR CODE</div>'
+    + '<div style="font-size:20px;font-weight:800;color:#f5f0e8;margin-bottom:4px">' + cap.name + '</div>'
+    + '<div style="font-size:11px;color:rgba(245,240,232,0.4);margin-bottom:4px">' + cap.area + ' · T' + (cap.tableFrom||'?') + '–T' + (cap.tableTo||'?') + '</div>'
+    + '<div style="font-size:10px;color:rgba(201,168,76,0.5);margin-bottom:18px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.15);border-radius:6px;padding:5px 10px;font-family:monospace">Restaurant: ' + rid + '</div>'
+
+    // QR canvas
+    + '<div style="background:#fff;border-radius:12px;padding:12px;display:inline-block;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,0.3)">'
+    + '<canvas id="ccCaptainQRCanvas" width="200" height="200"></canvas>'
+    + '</div>'
+
+    // Captain credentials info
+    + '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-bottom:16px;text-align:left">'
+    + '<div style="font-size:10px;color:rgba(245,240,232,0.35);letter-spacing:1px;margin-bottom:8px;font-family:monospace">LOGIN CREDENTIALS</div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="color:rgba(245,240,232,0.4)">Username:</span><span style="color:#f5f0e8;font-weight:700;font-family:monospace">' + (cap.username||'—') + '</span></div>'
+    + '<div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:rgba(245,240,232,0.4)">Password:</span><span style="color:#c9a84c;font-weight:700;font-family:monospace">' + (cap.password||'—') + '</span></div>'
+    + '</div>'
+
+    // URL field
+    + '<div style="margin-bottom:16px">'
+    + '<div style="font-size:10px;color:rgba(245,240,232,0.3);margin-bottom:5px;text-align:left">Captain Panel URL (QR mein embedded):</div>'
+    + '<div style="display:flex;gap:6px">'
+    + '<input id="ccCaptainPanelUrlInput" type="text" value="' + baseUrl + '" placeholder="captain.html ka full URL" style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:7px 10px;font-size:11px;color:#f5f0e8;font-family:monospace;min-width:0">'
+    + '<button onclick="ccUpdateCaptainQR()" style="background:rgba(201,168,76,0.2);border:1px solid rgba(201,168,76,0.4);border-radius:8px;padding:7px 12px;font-size:11px;color:#c9a84c;cursor:pointer;white-space:nowrap;font-weight:700">Update QR</button>'
+    + '</div>'
+    + '</div>'
+
+    // Buttons
+    + '<div style="display:flex;gap:8px;justify-content:center">'
+    + '<button onclick="ccDownloadCaptainQR(\'' + cap.name + '\')" style="flex:1;background:linear-gradient(135deg,#c9a84c,#a87c2a);border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:800;color:#fff;cursor:pointer">⬇️ Download QR</button>'
+    + '<button onclick="ccPrintCaptainQR(\'' + cap.name + '\',\'' + qrUrl + '\')" style="flex:1;background:rgba(52,152,219,0.2);border:1px solid rgba(52,152,219,0.4);border-radius:10px;padding:10px;font-size:13px;font-weight:700;color:#3498db;cursor:pointer">🖨️ Print</button>'
+    + '<button onclick="document.getElementById(\'ccCaptainQRModal\').remove()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;font-size:13px;color:rgba(245,240,232,0.5);cursor:pointer">✕</button>'
+    + '</div>'
+    + '</div>';
+
+  document.body.appendChild(modal);
+
+  // Close on backdrop click
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+
+  // Store cap data for update
+  window._ccCurrentQRCap = cap;
+  window._ccCurrentQRRid = rid;
+
+  // Draw QR
+  _ccDrawQR(qrUrl);
+};
+
+function _ccDrawQR(url) {
+  var canvas = document.getElementById('ccCaptainQRCanvas');
+  if (!canvas) return;
+  var img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = function(){
+    var ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,200,200);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0,0,200,200);
+    ctx.drawImage(img,0,0,200,200);
+  };
+  img.onerror = function(){
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0,0,200,200);
+    ctx.fillStyle = '#333';
+    ctx.font = '12px monospace';
+    ctx.fillText('QR Error — check URL', 10, 100);
+  };
+  img.src = 'https://api.qrserver.com/v1/create-qr-code/?data=' + encodeURIComponent(url) + '&size=200x200&margin=10&format=png';
+}
+
+window.ccUpdateCaptainQR = function() {
+  var newUrl = (document.getElementById('ccCaptainPanelUrlInput')||{}).value.trim();
+  if (!newUrl) { showToast('URL dalo pehle!', 'error'); return; }
+  localStorage.setItem('cc_captain_panel_url', newUrl);
+  var rid = window._ccCurrentQRRid || window._sip_restaurantId || 'norestaurant';
+  var qrUrl = newUrl + '?rid=' + encodeURIComponent(rid);
+  _ccDrawQR(qrUrl);
+  showToast('✅ QR updated!', 'success');
+};
+
+window.ccDownloadCaptainQR = function(capName) {
+  var canvas = document.getElementById('ccCaptainQRCanvas');
+  if (!canvas) return;
+  // Give QR time to load then download
+  setTimeout(function(){
+    try {
+      var link = document.createElement('a');
+      link.download = 'captain-qr-' + (capName||'captain').replace(/\s+/g,'-').toLowerCase() + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast('⬇️ QR downloaded!', 'success');
+    } catch(e) {
+      // CORS fallback — direct download from API
+      var urlInput = document.getElementById('ccCaptainPanelUrlInput');
+      var baseUrl = urlInput ? urlInput.value.trim() : '';
+      var rid = window._ccCurrentQRRid || '';
+      var qrUrl = baseUrl + '?rid=' + encodeURIComponent(rid);
+      var a = document.createElement('a');
+      a.href = 'https://api.qrserver.com/v1/create-qr-code/?data=' + encodeURIComponent(qrUrl) + '&size=300x300&margin=15&format=png';
+      a.download = 'captain-qr-' + (capName||'captain').replace(/\s+/g,'-').toLowerCase() + '.png';
+      a.target = '_blank';
+      a.click();
+      showToast('⬇️ QR downloading...', 'success');
+    }
+  }, 500);
+};
+
+window.ccPrintCaptainQR = function(capName, qrUrl) {
+  var cap = window._ccCurrentQRCap || {};
+  var rid = window._ccCurrentQRRid || '';
+  var urlInput = document.getElementById('ccCaptainPanelUrlInput');
+  var baseUrl = urlInput ? urlInput.value.trim() : '';
+  var finalUrl = baseUrl ? (baseUrl + '?rid=' + encodeURIComponent(rid)) : qrUrl;
+  var qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?data=' + encodeURIComponent(finalUrl) + '&size=250x250&margin=15&format=png';
+  var win = window.open('','_blank','width=420,height=600');
+  if (!win) { showToast('Popup blocked! Allow karo.', 'error'); return; }
+  win.document.write('<!DOCTYPE html><html><head><title>Captain QR — ' + capName + '</title>'
+    + '<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;background:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:20px}'
+    + '.card{border:2px solid #1a1a2e;border-radius:16px;padding:28px 24px;max-width:320px;text-align:center}'
+    + 'h2{font-size:18px;color:#1a1a2e;margin-bottom:4px}p{font-size:12px;color:#666;margin-bottom:16px}'
+    + '.cred{background:#f8f9fa;border:1px solid #dee2e6;border-radius:8px;padding:12px;margin:12px 0;text-align:left}'
+    + '.cred div{font-size:12px;margin-bottom:4px}.lbl{color:#666}.val{font-weight:700;font-family:monospace}'
+    + '.rid{background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:6px 10px;font-size:11px;font-family:monospace;margin-bottom:12px}'
+    + '@media print{body{padding:0}}</style>'
+    + '</head><body><div class="card">'
+    + '<h2>🧑‍✈️ ' + (capName||'Captain') + '</h2>'
+    + '<p>' + (cap.area||'') + ' · Tables ' + (cap.tableFrom||'?') + '–' + (cap.tableTo||'?') + '</p>'
+    + '<div class="rid">Restaurant: ' + rid + '</div>'
+    + '<img src="' + qrSrc + '" width="220" height="220" style="border-radius:8px"><br>'
+    + '<div class="cred">'
+    + '<div><span class="lbl">Username: </span><span class="val">' + (cap.username||'—') + '</span></div>'
+    + '<div><span class="lbl">Password: </span><span class="val">' + (cap.password||'—') + '</span></div>'
+    + '</div>'
+    + '<p style="font-size:10px;color:#999">QR scan karo → Captain Panel khulega → Login karo</p>'
+    + '</div><script>window.onload=function(){window.print()}<\/script></body></html>');
+  win.document.close();
 };
