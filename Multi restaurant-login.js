@@ -126,16 +126,12 @@
   // ── YAHAN APNE RESTAURANTS ADD KARO ──────────────────────────────
   var RESTAURANTS = [
     {
-      id: 'restaurant_001',          // Firestore mein document ID
-      name: 'Siplora restaurant',                // Display name (login screen pe)
+      id: 'rest_001',                // Firestore users collection mein restaurantId
+      name: 'Anand Restaurant',      // billing9021@gmail.com ka restaurant
     },
     {
-      id: 'restaurant_002',
-      name: 'Siplora Koregaon Park',
-    },
-    {
-      id: 'restaurant_003',
-      name: 'poonam',
+      id: 'rest_002',
+      name: 'Poonam Restaurant',     // billing9090@gmail.com ka restaurant
     },
     // Aur restaurants yahan add karo...
   ];
@@ -287,30 +283,25 @@
         window.__getDoc = fsModForGet.getDoc;
       }
 
-      // Firestore mein 'restaurants/{restaurantId}' document dhundho
-      // Verify karo ke is user ka uid ya email match karta hai
-      var restaurantDocRef = window.__doc(db, 'restaurants', selectedRestaurantId);
-      var restaurantSnap = await window.__getDoc(restaurantDocRef);
+      // Firestore mein 'users/{uid}' document dhundho
+      // Verify karo ke is user ka restaurantId selected restaurant se match karta hai
+      var userDocRef = window.__doc(db, 'users', uid);
+      var userSnap = await window.__getDoc(userDocRef);
 
-      if (!restaurantSnap.exists()) {
-        // Restaurant document hi nahi mila — sign out karo
+      if (!userSnap.exists()) {
+        // User document nahi mila
         try { await auth.signOut(); } catch(e) {}
-        showErr('❌ Ye restaurant system mein registered nahi hai');
+        showErr('❌ User account nahi mila — admin se contact karo');
         if (box) { box.classList.add('sip-shake'); setTimeout(function(){ box.classList.remove('sip-shake'); }, 450); }
         return;
       }
 
-      var restaurantData = restaurantSnap.data();
+      var userData = userSnap.data();
 
-      // Verify: restaurant document mein uid ya email match karo
-      // Tumhare document mein uid, email fields hain — dono check karo
-      var docUid   = restaurantData.uid   || '';
-      var docEmail = (restaurantData.email || '').toLowerCase();
-      var loginEmail = email.toLowerCase();
+      // Verify: user ka restaurantId selected restaurant se match karo
+      var userRestaurantId = userData.restaurantId || '';
 
-      var isAuthorized = (docUid && docUid === uid) || (docEmail && docEmail === loginEmail);
-
-      if (!isAuthorized) {
+      if (userRestaurantId !== selectedRestaurantId) {
         // Ye user dusre restaurant ka hai — access band karo
         try { await auth.signOut(); } catch(e) {}
         showErr('❌ Aap is restaurant ke authorized user nahi hain');
@@ -319,8 +310,8 @@
       }
 
       // ── Step 4: LOGIN SUCCESS ─────────────────────────────────────
-      var userRole = restaurantData.role || 'owner';
-      var restaurantName = restaurantData.name || restaurantData.restaurantName || selectedRestaurantId;
+      var userRole = userData.role || 'owner';
+      var restaurantName = userData.name || userData.restaurantName || selectedRestaurantId;
 
       window._sip_restaurantId   = selectedRestaurantId;
       window._sip_userRole       = userRole;
