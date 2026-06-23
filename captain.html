@@ -3722,7 +3722,7 @@ tbody td { color: var(--ink2) !important; }
       </button>
     </div>
     <div style="display:flex;gap:8px;">
-      <button class="btn btn-outline" style="flex:1;font-size:11px" onclick="captainPrintBill()">>🖨️ Print</button>
+      <button class="btn btn-outline" style="flex:1;font-size:11px" onclick="captainPrintBill()">🖨️ Print</button>
       <button class="btn btn-outline" style="flex:1;font-size:11px" onclick="closeModal('billPrintModal')">Cancel</button>
     </div>
   </div>
@@ -8512,7 +8512,7 @@ function updateCustomerHistory(histEntry){
 }
 
 // ── addNotification: Firebase mein save karo — local DOM mein direct nahi ──
-function addNotification(title, sub, type){
+function addNotification_legacy(title, sub, type){
   const typeMap = {green:'success', orange:'warn', red:'alert', blue:'info', purple:'info'};
   const fbType = typeMap[type] || 'info';
   if (typeof addNotificationToFirebase === 'function') {
@@ -19348,18 +19348,16 @@ function confirmAndPlaceOrder() {
     showPage('orderplace', document.querySelector('.nav-item[onclick*=orderplace]') || null);
   }, 100);
 }
-</script>
-<script>
+
 function captainPrintBill(){
   var w=window.open('','_blank');
   var c=document.getElementById('billPrintBody').innerHTML;
-  var s='\x3Cscript\x3Ewindow.onload=function(){window.print();window.close()}\x3C\x2Fscript\x3E';
-  w.document.write('<!DOCTYPE html><html><head><title>Bill</title><style>body{margin:0;padding:16px;font-family:Courier New,monospace}@media print{body{padding:0}}</style></head><body>'+c+s+'</body></html>');
+  var tag='scr'+'ipt';
+  var s='<'+tag+'>window.onload=function(){window.print();window.close()}</'+tag+'>';
+  w.document.write('<!DOCTYPE html><html><head><title>Bill<\/title><style>body{margin:0;padding:16px;font-family:Courier New,monospace}@media print{body{padding:0}}<\/style><\/head><body>'+c+s+'<\/body><\/html>');
   w.document.close();
 }
 </script>
-</body>
-</html>
 <!-- ═══════════════════════════════════════════════════════════════
      🏠 DASHBOARD — FIREBASE LIVE DATA INTEGRATION
      Revenue Live card + Orders count + Progress bar real data se
@@ -20257,7 +20255,8 @@ function captainPrintQR(){
   var url=localStorage.getItem('captain_menu_url')||'';
   var qrSrc='https://api.qrserver.com/v1/create-qr-code/?data='+encodeURIComponent(url)+'&size=250x250&margin=15&format=png';
   var win=window.open('','_blank'); if(!win){ showToast('Popup blocked! Allow karo.','#f59e0b'); return; }
-  win.document.write('<!DOCTYPE html><html><head><title>QR</title><style>body{text-align:center;padding:40px;font-family:Arial}.box{display:inline-block;border:3px solid #000;border-radius:16px;padding:28px}</style></head><body><div class="box"><h2>🍽️ Scan for Menu</h2><img src="'+qrSrc+'" width="250" height="250"><br><small>'+url+'</small></div>\x3Cscript\x3Ewindow.onload=function(){window.print()}\x3C\x2Fscript\x3E</body></html>');
+  var printHtml = '<!DOCTYPE html><html><head><title>QR</title><style>body{text-align:center;padding:40px;font-family:Arial}.box{display:inline-block;border:3px solid #000;border-radius:16px;padding:28px}<\/style><\/head><body><div class="box"><h2>\uD83C\uDF7D\uFE0F Scan for Menu<\/h2><img src="'+qrSrc+'" width="250" height="250"><br><small>'+url+'<\/small><\/div><scr'+'ipt>window.onload=function(){window.print()}<\/scr'+'ipt><\/body><\/html>';
+  win.document.write(printHtml);
   win.document.close();
 }
 function captainGenerateNewQR(){
@@ -20314,3 +20313,5 @@ function captainApplyFont(fontName) {
   if (statusTxt) statusTxt.textContent = 'Active Font: ' + fontName;
 }
 </script>
+</body>
+</html>
