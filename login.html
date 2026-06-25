@@ -21,44 +21,74 @@
     .f1{top:10%;left:10%;} .f2{top:70%;left:15%;} .f3{top:20%;right:10%;} .f4{bottom:10%;right:20%;}
     @keyframes float {0%,100%{transform:translateY(0);}50%{transform:translateY(-40px);}}
     .login-box {
-      z-index:2; width:360px; padding:40px; border-radius:20px;
+      z-index:2; width:380px; padding:40px; border-radius:20px;
       background:rgba(255,255,255,0.08); backdrop-filter:blur(20px);
       box-shadow:0 0 40px rgba(0,255,100,0.4); text-align:center; color:white;
     }
     .logo {font-size:28px; margin-bottom:8px; color:#00e676;}
     h2 {margin-bottom:20px; font-size:18px;}
-    input {
-      width:100%; padding:12px; margin:8px 0; border:none;
+    .field-label {
+      text-align:left; font-size:11px; color:rgba(255,255,255,0.5);
+      letter-spacing:1.5px; text-transform:uppercase; margin:10px 0 4px;
+    }
+    input, select {
+      width:100%; padding:12px; margin:0 0 4px; border:none;
       border-radius:10px; background:rgba(255,255,255,0.15);
       color:white; font-size:14px; outline:none;
+      border:1px solid rgba(255,255,255,0.1);
+      transition: border-color 0.2s;
     }
+    select {
+      cursor:pointer;
+      -webkit-appearance:none; appearance:none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2300e676' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat:no-repeat; background-position:right 14px center;
+      padding-right:36px;
+    }
+    select option { background:#1a2e1a; color:white; }
+    input:focus, select:focus { border-color:rgba(0,230,118,0.5); }
     input::placeholder{color:rgba(255,255,255,0.5);}
     button {
       width:100%; padding:12px; border:none; border-radius:10px;
       background:linear-gradient(45deg,#00c853,#69f0ae);
-      cursor:pointer; font-size:15px; font-weight:600; margin-top:8px;
-      transition:opacity 0.2s;
+      cursor:pointer; font-size:15px; font-weight:600; margin-top:14px;
+      transition:opacity 0.2s, transform 0.1s; color:#003300;
     }
-    button:disabled{opacity:0.6; cursor:not-allowed;}
+    button:hover{opacity:0.92; transform:translateY(-1px);}
+    button:disabled{opacity:0.6; cursor:not-allowed; transform:none;}
     .error {color:#ff5252; font-size:13px; margin-top:12px; min-height:18px; line-height:1.4;}
     .success {color:#69f0ae; font-size:13px; margin-top:12px;}
   </style>
 </head>
 <body>
 
-<img class="food f1" src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd">
-<img class="food f2" src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c">
-<img class="food f3" src="https://images.unsplash.com/photo-1504674900247-0877df9cc836">
-<img class="food f4" src="https://images.unsplash.com/photo-1543353071-087092ec393a">
+<img class="food f1" src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=120">
+<img class="food f2" src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=120">
+<img class="food f3" src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120">
+<img class="food f4" src="https://images.unsplash.com/photo-1543353071-087092ec393a?w=120">
 
 <div class="login-box">
-  <div class="logo">🌿 Siplora(System)</div>
-  <h2>Welcome Back</h2>
-  <form id="loginForm">
-    <input id="email" type="email" placeholder="Email" required autocomplete="email">
-    <input id="password" type="password" placeholder="Password" required autocomplete="current-password">
-    <button type="submit" id="loginBtn">Login</button>
-  </form>
+  <div class="logo">🌿 Siplora</div>
+  <h2>Restaurant Login</h2>
+
+  <!-- ── Restaurant Select ── -->
+  <div class="field-label">Restaurant Select Karo</div>
+  <select id="restaurantSel">
+    <option value="">-- Restaurant chuniye --</option>
+    <option value="rest_001">Siplora Restaurant</option>
+    <option value="rest_002">Poonam</option>
+    
+    <!-- Naya restaurant add karna ho to yahan option add karo -->
+  </select>
+
+  <!-- ── Email + Password ── -->
+  <div class="field-label">Email</div>
+  <input id="email" type="email" placeholder="owner@restaurant.com" autocomplete="email">
+
+  <div class="field-label">Password</div>
+  <input id="password" type="password" placeholder="••••••••" autocomplete="current-password">
+
+  <button id="loginBtn" onclick="doLogin()">Login →</button>
   <div class="error" id="errMsg"></div>
 </div>
 
@@ -67,42 +97,22 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <script>
-  // ── Login page khulte hi purana session + purana restaurant data clear karo ──
-  // Taaki naya user fresh login kar sake — purana session ya purana
-  // restaurant ka cached billing data (tables/orders/menu/etc.) na dikhe
+  // ── Purana session + restaurant cache clear karo ─────────────────
   localStorage.removeItem("sip_session");
   localStorage.removeItem("cc_loggedIn");
   localStorage.removeItem("cc_role");
   localStorage.removeItem("cc_restaurantId");
   localStorage.removeItem("sipSession");
+  localStorage.removeItem("lum_active_restaurant");
 
-  // ── IMPORTANT FIX: billing.js localStorage mein bina restaurantId ke
-  // data save karta hai (lum_tables, lum_orders, lum_menu, etc.).
-  // Agar same browser se doosra restaurant login kare, to ye purana
-  // cached data naye restaurant ko dikh jata hai jab tak Firebase se
-  // fresh data na aa jaye. Isliye login ke time ye saari keys clear karo.
-  var LUM_KEYS_TO_CLEAR = [
-    "lum_tables", "lum_floors", "lum_menu", "lum_tasks", "lum_customers",
-    "lum_stock", "lum_settings", "lum_billno", "lum_quotations", "lum_quotno",
-    "lum_suppliers", "lum_delivery", "lum_loyalty", "lum_orders",
-    "lum_paid_tables", "lum_menu_url", "lum_wa_config", "lum_wa_server_url",
-    "lum_queue", "smStaff", "lum_attendance", "es_employees",
-    "es_attendance", "es_salary_status"
-  ];
-  LUM_KEYS_TO_CLEAR.forEach(function (k) {
-    localStorage.removeItem(k);
-  });
-  // Safety net: agar koi naya "lum_" ya "es_" key future me add ho jaye
-  // jo upar list me dalna bhool gaye ho, use bhi pakad ke clear karo.
-  Object.keys(localStorage).forEach(function (k) {
-    if (k.indexOf("lum_") === 0 || k.indexOf("es_") === 0 || k.indexOf("smStaff") === 0) {
+  // lum_ / es_ keys clear karo — purana restaurant ka data naye ko na dikhe
+  Object.keys(localStorage).forEach(function(k) {
+    if (k.indexOf("lum_") === 0 || k.indexOf("es_") === 0 || k === "smStaff") {
       localStorage.removeItem(k);
     }
   });
 
-  // Firebase Auth se bhi sign out karo (purana user logged in ho sakta hai)
-  // Ye firebase load hone ke baad hoga — neeche handle hai
-
+  // ── Firebase init ────────────────────────────────────────────────
   firebase.initializeApp({
     apiKey: "AIzaSyBsRxWD2R1GkSEM-duLwQe3jAi7yw5vvvM",
     authDomain: "restaurant-system-beec1.firebaseapp.com",
@@ -115,97 +125,118 @@
   const auth = firebase.auth();
   const db   = firebase.firestore();
 
-  // ── Purana Firebase Auth session bhi clear karo ─────────────────
-  auth.signOut().catch(() => {});
+  // Purana Firebase session clear karo
+  auth.signOut().catch(function(){});
 
-  document.getElementById("loginForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
+  // Enter key se bhi login ho
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doLogin();
+  });
 
-    const email    = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value.trim();
-    const errMsg   = document.getElementById("errMsg");
-    const btn      = document.getElementById("loginBtn");
+  async function doLogin() {
+    var selectedRestaurantId = document.getElementById("restaurantSel").value.trim();
+    var email    = document.getElementById("email").value.trim();
+    var password = document.getElementById("password").value.trim();
+    var errMsg   = document.getElementById("errMsg");
+    var btn      = document.getElementById("loginBtn");
 
     errMsg.textContent = "";
-    btn.textContent    = "Logging in...";
-    btn.disabled       = true;
+
+    // Validation
+    if (!selectedRestaurantId) { errMsg.textContent = "❌ Pehle restaurant select karo"; return; }
+    if (!email)    { errMsg.textContent = "❌ Email daalo"; return; }
+    if (!password) { errMsg.textContent = "❌ Password daalo"; return; }
+
+    btn.textContent = "Checking...";
+    btn.disabled    = true;
 
     try {
       // ── Step 1: Firebase Auth se login ──────────────────────────
-      const userCred = await auth.signInWithEmailAndPassword(email, password);
-      const uid      = userCred.user.uid;
+      var userCred = await auth.signInWithEmailAndPassword(email, password);
+      var uid      = userCred.user.uid;
 
-      // ── Step 2: Firestore mein users/{uid} se role padho ────────
-      // Document ID = Firebase Auth UID hona chahiye
-      const userDoc = await db.collection("users").doc(uid).get();
+      // ── Step 2: Firestore mein restaurant verify karo ────────────
+      // restaurants/{restaurantId} mein uid ya email match karo
+      var restDoc = await db.collection("restaurants").doc(selectedRestaurantId).get();
 
-      let role         = "";
-      let restaurantId = "";
-
-      if (userDoc.exists) {
-        const data   = userDoc.data();
-        role         = data.role         || "";
-        restaurantId = data.restaurantId || "";
-      } else {
-        // ── users document nahi mila ──────────────────────────────
-        // restaurants collection mein check karo — owner ho sakta hai
-        const restSnap = await db.collection("restaurants")
-          .where("ownerUid", "==", uid)
-          .get();
-
-        if (!restSnap.empty) {
-          role         = "owner";
-          restaurantId = restSnap.docs[0].data().restaurantId || restSnap.docs[0].id;
-        } else {
-          await auth.signOut();
-          errMsg.textContent = "❌ Tumhara account Firestore mein nahi hai — admin se contact karo";
-          btn.textContent = "Login"; btn.disabled = false;
-          return;
-        }
-      }
-
-      if (!role) {
+      if (!restDoc.exists) {
         await auth.signOut();
-        errMsg.textContent = "❌ Role set nahi hai — admin se contact karo";
-        btn.textContent = "Login"; btn.disabled = false;
+        errMsg.textContent = "❌ Ye restaurant system mein registered nahi hai";
+        btn.textContent = "Login →"; btn.disabled = false;
         return;
       }
 
-      // ── Step 3: Session save karo ────────────────────────────────
-      localStorage.setItem("sip_session", JSON.stringify({
-        restaurantId : restaurantId,
-        uid          : uid,
-        email        : email,
-        role         : role,
-        loginAt      : Date.now()
-      }));
+      var restData  = restDoc.data();
+      var docUid    = restData.Uid || restData.ownerUid || restData.uid || "";
+      var docEmail  = (restData.ownerEmail || restData.email || "").toLowerCase();
+      var loginEmail = email.toLowerCase();
 
-      // restaurantId global set karo (billing.js ke liye)
-      window._sip_restaurantId = restaurantId;
+      // Check: kya ye user is restaurant ka authorized user hai?
+      var isAuthorized = (docUid && docUid === uid) || (docEmail && docEmail === loginEmail);
 
-      // ── Step 4: Role ke hisaab se redirect ──────────────────────
-      if      (role === "chef")    location.href = "chef.html";
-      else if (role === "captain") location.href = "captain.html";
-      else if (role === "billing") location.href = "billing.html";
-      else if (role === "ads")     location.href = "ads.html";
-      else if (role === "owner")   location.href = "billing.html";
-      else {
-        errMsg.textContent = "❌ Role pehchana nahi gaya: " + role;
-        btn.textContent = "Login"; btn.disabled = false;
+      if (!isAuthorized) {
+        // users/{uid} mein check karo — staff ho sakta hai
+        var userDoc = await db.collection("users").doc(uid).get();
+        if (userDoc.exists && userDoc.data().restaurantId === selectedRestaurantId) {
+          isAuthorized = true;
+          var userData = userDoc.data();
+          restData.role = userData.role || restData.role || "owner";
+        }
       }
 
-    } catch (err) {
-      btn.textContent = "Login"; btn.disabled = false;
+      if (!isAuthorized) {
+        await auth.signOut();
+        errMsg.textContent = "❌ Aap is restaurant ke authorized user nahi hain";
+        btn.textContent = "Login →"; btn.disabled = false;
+        return;
+      }
+
+      // ── Step 3: Role determine karo ─────────────────────────────
+      var role = restData.role || "owner";
+
+      // ── Step 4: Session save karo ────────────────────────────────
+      var restaurantName = restData.name || restData.restaurantName || selectedRestaurantId;
+
+      localStorage.setItem("sip_session", JSON.stringify({
+        restaurantId  : selectedRestaurantId,
+        uid           : uid,
+        email         : email,
+        role          : role,
+        restaurantName: restaurantName,
+        loginAt       : Date.now()
+      }));
+
+      // lum_active_restaurant tag — cache mismatch prevent karo
+      localStorage.setItem("lum_active_restaurant", selectedRestaurantId);
+
+      // ── CRITICAL: Purane restaurant ka cached data clear karo ──
+      // Taaki billing.html open hone pe purana data na dikhe
+      Object.keys(localStorage).forEach(function(k) {
+        if (k.indexOf("lum_") === 0 || k.indexOf("es_") === 0 || k === "smStaff") {
+          localStorage.removeItem(k);
+        }
+      });
+
+      window._sip_restaurantId = selectedRestaurantId;
+
+      // ── Step 5: Role ke hisaab se redirect ──────────────────────
+      if      (role === "chef")    window.location.href = "chef.html";
+      else if (role === "captain") window.location.href = "captain.html";
+      else if (role === "billing") window.location.href = "billing.html";
+      else if (role === "ads")     window.location.href = "ads.html";
+      else                         window.location.href = "billing.html"; // owner + default
+
+    } catch(err) {
+      btn.textContent = "Login →"; btn.disabled = false;
 
       if      (err.code === "auth/user-not-found")    errMsg.textContent = "❌ Ye email registered nahi hai";
       else if (err.code === "auth/wrong-password")     errMsg.textContent = "❌ Password galat hai";
       else if (err.code === "auth/invalid-credential") errMsg.textContent = "❌ Email ya password galat hai";
       else if (err.code === "auth/invalid-email")      errMsg.textContent = "❌ Email format sahi nahi";
       else if (err.code === "auth/too-many-requests")  errMsg.textContent = "❌ Bahut attempts — thodi der baad try karo";
-      else if (err.code === "permission-denied")       errMsg.textContent = "❌ Firestore Rules block kar rahi hai — rules update karo";
-      else                                             errMsg.textContent = "❌ " + err.message;
+      else                                             errMsg.textContent = "❌ " + (err.message || err.code);
     }
-  });
+  }
 </script>
 </body>
 </html>

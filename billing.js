@@ -2133,7 +2133,7 @@ function showPage(id,el){
       });
       if(changed){ save('tables',tables); }
     }catch(e){}
-    renderFloorTabs();renderMainTableGrid(activeFloor||floors[0]);
+    renderFloorTabs();renderMainTableGrid(activeFloor||floors[0]);populateFloorDropdown();
   }
   if(id==='qr-tables'){buildAllQRCodes();}
   if(id==='billing'){buildAutoBillGrid(); populateManualTableSelect();}
@@ -2568,6 +2568,12 @@ function buildAnalyticsChart(){
 function buildAnalyticsChartBar(vals){ buildBarChart('analytics-chart',vals); }
 
 let activeFloor = floors[0];
+
+// Page load pe floor dropdown populate karo
+document.addEventListener('DOMContentLoaded', function(){
+  populateFloorDropdown();
+});
+
 function renderFloorTabs(){
   const c=document.getElementById('floor-tabs');
   if(!c)return;
@@ -2662,6 +2668,22 @@ function addNewTable(){
   populateManualTableSelect();
   showToast('Table '+num+' added on '+floor+' floor!','success');
 }
+function populateFloorDropdown(){
+  // new-table-floor dropdown mein saare floors dikhao
+  const sel = document.getElementById('new-table-floor');
+  if(!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '';
+  (floors||[]).forEach(function(f){
+    const opt = document.createElement('option');
+    opt.value = f;
+    opt.textContent = f;
+    sel.appendChild(opt);
+  });
+  // Pehle wala selection restore karo
+  if(current && floors.includes(current)) sel.value = current;
+}
+
 function addNewFloor(){
   const name=document.getElementById('new-floor-name').value.trim();
   if(!name){ showToast('Enter floor name','warning'); return; }
@@ -2670,6 +2692,7 @@ function addNewFloor(){
   save('floors',floors);
   closeModal('add-floor-modal');
   renderFloorTabs();
+  populateFloorDropdown(); // ← naya floor dropdown mein add karo
   showToast(name+' floor added!','success');
 }
 
@@ -3468,22 +3491,32 @@ function autoCalcHalfPrice(){
 }
 
 // ═══ DISH RECIPE (Stock Linking for Auto Inventory Tracking) ═══
-function addDishRecipeRow(stockName, qty){
+function addDishRecipeRow(stockName, qty, unit){
   const container = document.getElementById('dish-recipe-container');
   if(!container) return;
   const matched = (stockItems||[]).find(s => s.name === stockName);
   const options = (stockItems||[]).map(s =>
     '<option value="'+s.name.replace(/"/g,'&quot;')+'" data-unit="'+(s.unit||'')+'"'+(s.name===stockName?' selected':'')+'>'+s.name+' ('+(s.unit||'')+')</option>'
   ).join('');
+
+  // Auto unit from stock item
+  const detectedUnit = matched ? (matched.unit||'') : (unit||'gm');
+  const ALL_UNITS = ['gm','kg','ml','liter','pcs','cup','tbsp','tsp','nos'];
+  const unitOptions = ALL_UNITS.map(u =>
+    '<option value="'+u+'"'+(detectedUnit===u?' selected':'')+'>'+u+'</option>'
+  ).join('');
+
   const row = document.createElement('div');
   row.className = 'dish-recipe-row';
-  row.style.cssText = 'display:flex;gap:8px;align-items:center';
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px';
   row.innerHTML =
-    '<select class="form-select dish-recipe-stock" style="flex:2" onchange="this.parentElement.querySelector(\'.dish-recipe-unit\').textContent=this.selectedOptions[0]?this.selectedOptions[0].dataset.unit||\'\':\'\'">' +
+    '<select class="form-select dish-recipe-stock" style="flex:2;min-width:130px" onchange="(function(sel){var u=sel.selectedOptions[0]?sel.selectedOptions[0].dataset.unit||null:null;if(u){var us=sel.closest(\'.dish-recipe-row\').querySelector(\'.dish-recipe-unit-sel\');if(us)us.value=u;}})(this)">' +
       '<option value="">-- Stock Item --</option>' + options +
     '</select>' +
-    '<input class="form-input dish-recipe-qty" type="number" step="0.01" min="0" placeholder="Qty / plate" value="'+(qty||'')+'" style="flex:1"/>' +
-    '<span class="dish-recipe-unit" style="font-family:var(--font-ui);font-size:10px;color:rgba(245,240,232,0.45);min-width:28px">'+(matched?matched.unit||'':'')+'</span>' +
+    '<input class="form-input dish-recipe-qty" type="number" step="0.01" min="0" placeholder="Qty" value="'+(qty||'')+'" style="width:70px;flex-shrink:0"/>' +
+    '<select class="form-select dish-recipe-unit-sel" style="width:68px;flex-shrink:0;font-size:12px">' +
+      unitOptions +
+    '</select>' +
     '<button type="button" class="btn btn-ghost btn-sm" onclick="this.closest(\'.dish-recipe-row\').remove()" style="padding:6px 10px;color:#e74c3c;border-color:rgba(231,76,60,0.3)">✕</button>';
   container.appendChild(row);
   if(!stockItems || !stockItems.length){
@@ -3497,9 +3530,12 @@ function getDishRecipeFromForm(){
   rows.forEach(row=>{
     const stockName = (row.querySelector('.dish-recipe-stock')||{}).value || '';
     const qty = parseFloat((row.querySelector('.dish-recipe-qty')||{}).value) || 0;
+    // Unit dropdown se read karo (naya) ya stock item se fallback
+    const unitSel = row.querySelector('.dish-recipe-unit-sel');
+    const stockItem = (stockItems||[]).find(s=>s.name===stockName);
+    const unit = unitSel ? (unitSel.value||'') : (stockItem ? (stockItem.unit||'') : '');
     if(stockName && qty > 0){
-      const stockItem = (stockItems||[]).find(s=>s.name===stockName);
-      recipe.push({ stockName, qty, unit: stockItem ? (stockItem.unit||'') : '' });
+      recipe.push({ stockName, qty, unit });
     }
   });
   return recipe;
@@ -3509,7 +3545,7 @@ function populateDishRecipeForm(recipeArr){
   const container = document.getElementById('dish-recipe-container');
   if(!container) return;
   container.innerHTML = '';
-  (recipeArr||[]).forEach(r => addDishRecipeRow(r.stockName, r.qty));
+  (recipeArr||[]).forEach(r => addDishRecipeRow(r.stockName, r.qty, r.unit||''));
 }
 
 function clearDishRecipeForm(){
