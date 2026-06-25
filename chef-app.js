@@ -12569,10 +12569,12 @@ async function _clFetchChefs() {
 
   try {
     const { collection, getDocs } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+    // FIX: Saare chefs fetch karo (bina restaurantId filter)
     const snap = await getDocs(collection(db, 'cc_chefs'));
     var arr = [];
     snap.forEach(function(d) { arr.push(Object.assign({ id: d.id }, d.data())); });
-    try { localStorage.setItem('cc_chefs', JSON.stringify(arr)); } catch(e) {}
+    console.log('[ChefLogin] Firestore se chefs mile:', arr.length);
+    if (arr.length) { try { localStorage.setItem('cc_chefs', JSON.stringify(arr)); } catch(e) {} }
     return arr.length ? arr : cached;
   } catch (e) {
     console.warn('[ChefLogin] Firestore fetch failed, using cached list:', e.message);

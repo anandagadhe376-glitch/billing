@@ -6638,7 +6638,10 @@ async function doLogin(){
                 || localStorage.getItem('captain_restaurant_id')
                 || null;
 
+    console.log('[CaptainLogin] Fetched captains:', snap.size, '| URL rid:', urlRid);
+
     let matchedCaptain = null;
+    let allMatches = [];
     snap.forEach(d => {
       const data = { _fbId: d.id, ...d.data() };
       if (
@@ -6647,13 +6650,23 @@ async function doLogin(){
         data.password === p &&
         data.status !== 'inactive'
       ) {
-        if (!matchedCaptain) {
-          matchedCaptain = data;
-        } else if (data.restaurantId && urlRid && data.restaurantId === urlRid) {
-          matchedCaptain = data;
-        }
+        allMatches.push(data);
       }
     });
+
+    console.log('[CaptainLogin] Matching captains:', allMatches.length);
+
+    if (allMatches.length === 1) {
+      // Sirf ek match — ye hi hai
+      matchedCaptain = allMatches[0];
+    } else if (allMatches.length > 1) {
+      // Multiple match — urlRid se sahi restaurant wala chuno
+      if (urlRid) {
+        matchedCaptain = allMatches.find(function(c){ return c.restaurantId === urlRid; }) || allMatches[0];
+      } else {
+        matchedCaptain = allMatches[0];
+      }
+    }
 
     if (matchedCaptain) {
       const rid = matchedCaptain.restaurantId || urlRid || null;
